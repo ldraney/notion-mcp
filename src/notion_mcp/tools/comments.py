@@ -8,7 +8,11 @@ from ..server import mcp, get_client, _parse_json, _error_response
 
 
 @mcp.tool()
-def create_comment(parent: str, rich_text: str) -> str:
+def create_comment(
+    parent: str,
+    rich_text: str,
+    discussion_id: str | None = None,
+) -> str:
     """Create a comment on a Notion page or block.
 
     Args:
@@ -16,11 +20,17 @@ def create_comment(parent: str, rich_text: str) -> str:
             e.g. {"page_id": "..."}.
         rich_text: JSON string for the rich-text content array,
             e.g. [{"type": "text", "text": {"content": "Hello!"}}].
+        discussion_id: Optional UUID of an existing discussion thread
+            to reply to. Omit to start a new top-level comment.
     """
     try:
+        kwargs: dict[str, object] = {}
+        if discussion_id is not None:
+            kwargs["discussion_id"] = discussion_id
         result = get_client().create_comment(
             parent=_parse_json(parent, "parent"),
             rich_text=_parse_json(rich_text, "rich_text"),
+            **kwargs,
         )
         return json.dumps(result, indent=2)
     except Exception as exc:

@@ -71,4 +71,4 @@ def _error_response(exc: Exception) -> str:
 
 from .tools import register_all_tools  # noqa: E402
 
-register_all_tools(mcp)
+register_all_tools()

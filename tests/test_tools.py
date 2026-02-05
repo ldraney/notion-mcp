@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 
@@ -71,6 +72,25 @@ class TestPageTools:
         call_kwargs = mock_client.create_page.call_args
         assert call_kwargs.kwargs["children"] == [{"object": "block", "type": "paragraph"}]
 
+    def test_create_page_with_template(self, mock_client):
+        from notion_mcp.tools.pages import create_page
+
+        mock_client.create_page.return_value = {"id": "page-3"}
+        template = json.dumps({"type": "template_id", "template_id": "tmpl-abc"})
+        result = create_page(
+            parent='{"type": "page_id", "page_id": "abc"}',
+            properties='{"title": []}',
+            template=template,
+        )
+        parsed = json.loads(result)
+        assert parsed["id"] == "page-3"
+        mock_client.create_page.assert_called_once_with(
+            parent={"type": "page_id", "page_id": "abc"},
+            properties={"title": []},
+            children=None,
+            template={"type": "template_id", "template_id": "tmpl-abc"},
+        )
+
     def test_get_page(self, mock_client):
         from notion_mcp.tools.pages import get_page
 
@@ -99,6 +119,24 @@ class TestPageTools:
         parsed = json.loads(result)
         assert parsed["id"] == "page-1"
         mock_client.update_page.assert_called_once_with("page-1", erase_content=True)
+
+    def test_update_page_erase_content_with_properties(self, mock_client):
+        """erase_content and properties can be combined in one call."""
+        from notion_mcp.tools.pages import update_page
+
+        mock_client.update_page.return_value = {"id": "page-1"}
+        result = update_page(
+            page_id="page-1",
+            properties='{"title": [{"text": {"content": "Cleared"}}]}',
+            erase_content=True,
+        )
+        parsed = json.loads(result)
+        assert parsed["id"] == "page-1"
+        mock_client.update_page.assert_called_once_with(
+            "page-1",
+            erase_content=True,
+            properties={"title": [{"text": {"content": "Cleared"}}]},
+        )
 
     def test_archive_page(self, mock_client):
         from notion_mcp.tools.pages import archive_page
@@ -313,6 +351,23 @@ class TestCommentTools:
             rich_text=[{"type": "text", "text": {"content": "Nice!"}}],
         )
 
+    def test_create_comment_with_discussion_id(self, mock_client):
+        from notion_mcp.tools.comments import create_comment
+
+        mock_client.create_comment.return_value = {"id": "comment-2"}
+        result = create_comment(
+            parent='{"page_id": "page-1"}',
+            rich_text='[{"type": "text", "text": {"content": "Reply!"}}]',
+            discussion_id="disc-abc",
+        )
+        parsed = json.loads(result)
+        assert parsed["id"] == "comment-2"
+        mock_client.create_comment.assert_called_once_with(
+            parent={"page_id": "page-1"},
+            rich_text=[{"type": "text", "text": {"content": "Reply!"}}],
+            discussion_id="disc-abc",
+        )
+
     def test_get_comments(self, mock_client):
         from notion_mcp.tools.comments import get_comments
 
@@ -386,6 +441,62 @@ class TestErrorHandling:
         parsed = json.loads(result)
         assert parsed["error"] is True
         assert "Connection failed" in parsed["message"]
+
+    def test_http_status_error_json_body(self, mock_client):
+        """HTTPStatusError from Notion should include status_code and API error details."""
+        from notion_mcp.tools.pages import get_page
+
+        response = httpx.Response(
+            status_code=404,
+            json={"object": "error", "code": "object_not_found", "message": "Page not found"},
+            request=httpx.Request("GET", "https://api.notion.com/v1/pages/page-1"),
+        )
+        mock_client.get_page.side_effect = httpx.HTTPStatusError(
+            "Not Found", request=response.request, response=response,
+        )
+        result = get_page("page-1")
+        parsed = json.loads(result)
+        assert parsed["error"] is True
+        assert parsed["status_code"] == 404
+        assert "Not Found" in parsed["message"]
+        assert parsed["details"]["code"] == "object_not_found"
+        assert parsed["details"]["message"] == "Page not found"
+
+    def test_http_status_error_plain_text_body(self, mock_client):
+        """HTTPStatusError with non-JSON body falls back to text."""
+        from notion_mcp.tools.pages import get_page
+
+        response = httpx.Response(
+            status_code=502,
+            text="Bad Gateway",
+            request=httpx.Request("GET", "https://api.notion.com/v1/pages/page-1"),
+        )
+        mock_client.get_page.side_effect = httpx.HTTPStatusError(
+            "Bad Gateway", request=response.request, response=response,
+        )
+        result = get_page("page-1")
+        parsed = json.loads(result)
+        assert parsed["error"] is True
+        assert parsed["status_code"] == 502
+        assert parsed["details"] == "Bad Gateway"
+
+    def test_http_status_error_rate_limit(self, mock_client):
+        """HTTPStatusError for 429 rate-limit responses."""
+        from notion_mcp.tools.databases import query_database
+
+        response = httpx.Response(
+            status_code=429,
+            json={"object": "error", "code": "rate_limited", "message": "Rate limited"},
+            request=httpx.Request("POST", "https://api.notion.com/v1/databases/db-1/query"),
+        )
+        mock_client.query_database.side_effect = httpx.HTTPStatusError(
+            "Rate Limited", request=response.request, response=response,
+        )
+        result = query_database("db-1")
+        parsed = json.loads(result)
+        assert parsed["error"] is True
+        assert parsed["status_code"] == 429
+        assert parsed["details"]["code"] == "rate_limited"
 
 
 # ---------------------------------------------------------------------------

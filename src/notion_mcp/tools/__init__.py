@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
-
-
-def register_all_tools(mcp: FastMCP) -> None:
-    """Import all tool modules, which register tools via the module-level functions."""
+def register_all_tools() -> None:
+    """Import all tool modules, which register tools via the module-level @mcp.tool() decorators."""
     from . import pages  # noqa: F401
     from . import databases  # noqa: F401
     from . import blocks  # noqa: F401

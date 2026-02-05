@@ -17,22 +17,20 @@ from ..server import mcp, get_client, _parse_json, _error_response
 
 @mcp.tool()
 def create_database(
-    parent: Annotated[str, Field(description="JSON string for the parent object, e.g. '{\"type\": \"page_id\", \"page_id\": \"...\"}'")],
-    title: Annotated[str, Field(description="JSON string for the title rich-text array, e.g. '[{\"type\": \"text\", \"text\": {\"content\": \"My DB\"}}]'")],
-    initial_data_source: Annotated[str | None, Field(description="JSON string for the initial data source configuration including properties")] = None,
+    parent: Annotated[str | dict, Field(description="JSON string or object for the parent, e.g. {\"type\": \"page_id\", \"page_id\": \"...\"}")],
+    title: Annotated[str | list, Field(description="JSON string or array for the title rich-text array, e.g. [{\"type\": \"text\", \"text\": {\"content\": \"My DB\"}}]")],
+    initial_data_source: Annotated[str | dict | None, Field(description="JSON string or object for the initial data source configuration including properties")] = None,
 ) -> str:
     """Create a new Notion database.
 
     In Notion API v2025-09-03, database properties live on data sources.
     Pass properties inside initial_data_source.properties.
 
-    IMPORTANT: All structured parameters must be passed as JSON-encoded strings, NOT as objects.
-
     Args:
-        parent: JSON string for the parent object, e.g. '{"type": "page_id", "page_id": "..."}'.
-        title: JSON string for the title rich-text array,
-            e.g. '[{"type": "text", "text": {"content": "My DB"}}]'.
-        initial_data_source: Optional JSON string for the initial data source
+        parent: JSON string or object for the parent, e.g. {"type": "page_id", "page_id": "..."}.
+        title: JSON string or array for the title rich-text array,
+            e.g. [{"type": "text", "text": {"content": "My DB"}}].
+        initial_data_source: Optional JSON string or object for the initial data source
             configuration including properties.
     """
     try:
@@ -68,21 +66,19 @@ def get_database(
 @mcp.tool()
 def update_database(
     database_id: Annotated[str, Field(description="The UUID of the database to update")],
-    title: Annotated[str | None, Field(description="JSON string for the new title rich-text array, e.g. '[{\"type\": \"text\", \"text\": {\"content\": \"New Title\"}}]'")] = None,
-    description: Annotated[str | None, Field(description="JSON string for the description rich-text array, e.g. '[{\"type\": \"text\", \"text\": {\"content\": \"A description\"}}]'")] = None,
-    icon: Annotated[str | None, Field(description="JSON string for the database icon, e.g. '{\"type\": \"emoji\", \"emoji\": \"📊\"}'")] = None,
-    cover: Annotated[str | None, Field(description="JSON string for the database cover, e.g. '{\"type\": \"external\", \"external\": {\"url\": \"https://...\"}}'")] = None,
+    title: Annotated[str | list | None, Field(description="JSON string or array for the new title rich-text array")] = None,
+    description: Annotated[str | list | None, Field(description="JSON string or array for the description rich-text array")] = None,
+    icon: Annotated[str | dict | None, Field(description="JSON string or object for the database icon, e.g. {\"type\": \"emoji\", \"emoji\": \"...\"}")] = None,
+    cover: Annotated[str | dict | None, Field(description="JSON string or object for the database cover, e.g. {\"type\": \"external\", \"external\": {\"url\": \"https://...\"}}")] = None,
 ) -> str:
     """Update a Notion database.
 
-    IMPORTANT: All structured parameters must be passed as JSON-encoded strings, NOT as objects.
-
     Args:
         database_id: The UUID of the database to update.
-        title: Optional JSON string for the new title rich-text array.
-        description: Optional JSON string for the description rich-text array.
-        icon: Optional JSON string for the database icon.
-        cover: Optional JSON string for the database cover.
+        title: Optional JSON string or array for the new title rich-text array.
+        description: Optional JSON string or array for the description rich-text array.
+        icon: Optional JSON string or object for the database icon.
+        cover: Optional JSON string or object for the database cover.
     """
     try:
         kwargs: dict[str, Any] = {}
@@ -119,8 +115,8 @@ def archive_database(
 @mcp.tool()
 def query_database(
     database_id: Annotated[str, Field(description="The UUID of the database to query")],
-    filter: Annotated[str | None, Field(description="JSON string for a filter object, e.g. '{\"property\": \"Status\", \"select\": {\"equals\": \"Done\"}}'")] = None,
-    sorts: Annotated[str | None, Field(description="JSON string for a list of sort objects, e.g. '[{\"property\": \"Created\", \"direction\": \"descending\"}]'")] = None,
+    filter: Annotated[str | dict | None, Field(description="JSON string or object for a filter, e.g. {\"property\": \"Status\", \"select\": {\"equals\": \"Done\"}}")] = None,
+    sorts: Annotated[str | list | None, Field(description="JSON string or array for a list of sort objects, e.g. [{\"property\": \"Created\", \"direction\": \"descending\"}]")] = None,
     start_cursor: Annotated[str | None, Field(description="Cursor for pagination")] = None,
     page_size: Annotated[int | None, Field(description="Number of results per page")] = None,
 ) -> str:
@@ -129,12 +125,10 @@ def query_database(
     Automatically resolves the first data source and queries it.
     If you already know the data source ID, use query_data_source instead.
 
-    IMPORTANT: filter and sorts must be passed as JSON-encoded strings, NOT as objects.
-
     Args:
         database_id: The UUID of the database to query.
-        filter: Optional JSON string for a filter object.
-        sorts: Optional JSON string for a list of sort objects.
+        filter: Optional JSON string or object for a filter.
+        sorts: Optional JSON string or array for a list of sort objects.
         start_cursor: Optional cursor for pagination.
         page_size: Optional number of results per page.
     """
@@ -175,15 +169,13 @@ def get_data_source(
 @mcp.tool()
 def update_data_source(
     data_source_id: Annotated[str, Field(description="The UUID of the data source to update")],
-    properties: Annotated[str | None, Field(description="JSON string for properties to update, e.g. '{\"Name\": {\"title\": {}}, \"Tags\": {\"multi_select\": {}}}'")] = None,
+    properties: Annotated[str | dict | None, Field(description="JSON string or object for properties to update")] = None,
 ) -> str:
     """Update a Notion data source.
 
-    IMPORTANT: The properties parameter must be passed as a JSON-encoded string, NOT as an object.
-
     Args:
         data_source_id: The UUID of the data source to update.
-        properties: Optional JSON string for properties to update.
+        properties: Optional JSON string or object for properties to update.
     """
     try:
         kwargs: dict[str, Any] = {}
@@ -198,19 +190,17 @@ def update_data_source(
 @mcp.tool()
 def query_data_source(
     data_source_id: Annotated[str, Field(description="The UUID of the data source to query")],
-    filter: Annotated[str | None, Field(description="JSON string for a filter object, e.g. '{\"property\": \"Status\", \"select\": {\"equals\": \"Done\"}}'")] = None,
-    sorts: Annotated[str | None, Field(description="JSON string for a list of sort objects, e.g. '[{\"property\": \"Created\", \"direction\": \"descending\"}]'")] = None,
+    filter: Annotated[str | dict | None, Field(description="JSON string or object for a filter, e.g. {\"property\": \"Status\", \"select\": {\"equals\": \"Done\"}}")] = None,
+    sorts: Annotated[str | list | None, Field(description="JSON string or array for a list of sort objects, e.g. [{\"property\": \"Created\", \"direction\": \"descending\"}]")] = None,
     start_cursor: Annotated[str | None, Field(description="Cursor for pagination")] = None,
     page_size: Annotated[int | None, Field(description="Number of results per page")] = None,
 ) -> str:
     """Query rows in a Notion data source.
 
-    IMPORTANT: filter and sorts must be passed as JSON-encoded strings, NOT as objects.
-
     Args:
         data_source_id: The UUID of the data source to query.
-        filter: Optional JSON string for a filter object.
-        sorts: Optional JSON string for a list of sort objects.
+        filter: Optional JSON string or object for a filter.
+        sorts: Optional JSON string or array for a list of sort objects.
         start_cursor: Optional cursor for pagination.
         page_size: Optional number of results per page.
     """

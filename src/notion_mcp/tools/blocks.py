@@ -53,15 +53,13 @@ def get_block_children(
 @mcp.tool()
 def append_block_children(
     block_id: Annotated[str, Field(description="The UUID of the parent block to append children to")],
-    children: Annotated[str, Field(description="JSON string for a list of block objects to append, e.g. '[{\"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": {\"rich_text\": [{\"type\": \"text\", \"text\": {\"content\": \"Hello\"}}]}}]'")],
+    children: Annotated[str | list, Field(description="JSON string or array for a list of block objects to append")],
 ) -> str:
     """Append child blocks to a Notion block.
 
-    IMPORTANT: The children parameter must be passed as a JSON-encoded string, NOT as an object.
-
     Args:
         block_id: The UUID of the parent block to append children to.
-        children: JSON string for a list of block objects to append.
+        children: JSON string or array for a list of block objects to append.
     """
     try:
         result = get_client().append_block_children(
@@ -76,16 +74,14 @@ def append_block_children(
 @mcp.tool()
 def update_block(
     block_id: Annotated[str, Field(description="The UUID of the block to update")],
-    content: Annotated[str | None, Field(description="JSON string of block properties to update. The keys depend on the block type, e.g. '{\"paragraph\": {\"rich_text\": [{\"type\": \"text\", \"text\": {\"content\": \"Updated text\"}}]}}'")] = None,
+    content: Annotated[str | dict | None, Field(description="JSON string or object of block properties to update. The keys depend on the block type, e.g. {\"paragraph\": {\"rich_text\": [...]}}")] = None,
 ) -> str:
     """Update a Notion block.
 
-    IMPORTANT: The content parameter must be passed as a JSON-encoded string, NOT as an object.
-
     Args:
         block_id: The UUID of the block to update.
-        content: JSON string of block properties to update. The keys depend
-            on the block type (e.g. '{"paragraph": {"rich_text": [...]}}').
+        content: JSON string or object of block properties to update. The keys depend
+            on the block type (e.g. {"paragraph": {"rich_text": [...]}}).
     """
     try:
         kwargs: dict[str, Any] = {}

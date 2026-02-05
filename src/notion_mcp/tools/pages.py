@@ -12,23 +12,21 @@ from ..server import mcp, get_client, _parse_json, _error_response
 
 @mcp.tool()
 def create_page(
-    parent: Annotated[str, Field(description="JSON string for the parent object, e.g. '{\"type\": \"page_id\", \"page_id\": \"...\"}'")],
-    properties: Annotated[str, Field(description="JSON string for the page properties mapping, e.g. '{\"title\": [{\"text\": {\"content\": \"My Page\"}}]}'")],
-    children: Annotated[str | None, Field(description="JSON string for a list of block children to append. Cannot be used together with template.")] = None,
-    template: Annotated[str | None, Field(description="JSON string for a data-source template, e.g. '{\"type\": \"none\"}', '{\"type\": \"default\"}', or '{\"type\": \"template_id\", \"template_id\": \"<uuid>\"}'")] = None,
+    parent: Annotated[str | dict, Field(description="JSON string or object for the parent, e.g. {\"type\": \"page_id\", \"page_id\": \"...\"}")],
+    properties: Annotated[str | dict, Field(description="JSON string or object for the page properties mapping")],
+    children: Annotated[str | list | None, Field(description="JSON string or array for a list of block children to append. Cannot be used together with template.")] = None,
+    template: Annotated[str | dict | None, Field(description="JSON string or object for a data-source template, e.g. {\"type\": \"none\"}, {\"type\": \"default\"}, or {\"type\": \"template_id\", \"template_id\": \"<uuid>\"}")] = None,
 ) -> str:
     """Create a new Notion page.
 
-    IMPORTANT: All structured parameters must be passed as JSON-encoded strings, NOT as objects.
-
     Args:
-        parent: JSON string for the parent object, e.g. '{"type": "page_id", "page_id": "..."}'.
-        properties: JSON string for the page properties mapping.
-        children: Optional JSON string for a list of block children to append.
+        parent: JSON string or object for the parent object, e.g. {"type": "page_id", "page_id": "..."}.
+        properties: JSON string or object for the page properties mapping.
+        children: Optional JSON string or array for a list of block children to append.
             Cannot be used together with template.
-        template: Optional JSON string for a data-source template, e.g.
-            '{"type": "none"}', '{"type": "default"}', or
-            '{"type": "template_id", "template_id": "<uuid>"}'.
+        template: Optional JSON string or object for a data-source template, e.g.
+            {"type": "none"}, {"type": "default"}, or
+            {"type": "template_id", "template_id": "<uuid>"}.
     """
     try:
         result = get_client().create_page(
@@ -61,22 +59,20 @@ def get_page(
 @mcp.tool()
 def update_page(
     page_id: Annotated[str, Field(description="The UUID of the page to update")],
-    properties: Annotated[str | None, Field(description="JSON string of properties to update, e.g. '{\"Name\": {\"title\": [{\"text\": {\"content\": \"New Title\"}}]}}'")] = None,
+    properties: Annotated[str | dict | None, Field(description="JSON string or object of properties to update")] = None,
     erase_content: Annotated[bool | None, Field(description="If true, clears ALL block content from the page. WARNING: This is destructive and irreversible.")] = None,
-    icon: Annotated[str | None, Field(description="JSON string for the page icon, e.g. '{\"type\": \"emoji\", \"emoji\": \"🎉\"}'")] = None,
-    cover: Annotated[str | None, Field(description="JSON string for the page cover, e.g. '{\"type\": \"external\", \"external\": {\"url\": \"https://...\"}}'")] = None,
+    icon: Annotated[str | dict | None, Field(description="JSON string or object for the page icon, e.g. {\"type\": \"emoji\", \"emoji\": \"...\"}")] = None,
+    cover: Annotated[str | dict | None, Field(description="JSON string or object for the page cover, e.g. {\"type\": \"external\", \"external\": {\"url\": \"https://...\"}}")] = None,
 ) -> str:
     """Update a Notion page's properties, icon, or cover.
 
-    IMPORTANT: All structured parameters must be passed as JSON-encoded strings, NOT as objects.
-
     Args:
         page_id: The UUID of the page to update.
-        properties: Optional JSON string of properties to update.
+        properties: Optional JSON string or object of properties to update.
         erase_content: If true, clears ALL block content from the page.
             WARNING: This is destructive and irreversible.
-        icon: Optional JSON string for the page icon.
-        cover: Optional JSON string for the page cover.
+        icon: Optional JSON string or object for the page icon.
+        cover: Optional JSON string or object for the page cover.
     """
     try:
         kwargs: dict[str, Any] = {}
@@ -115,16 +111,14 @@ def archive_page(
 @mcp.tool()
 def move_page(
     page_id: Annotated[str, Field(description="The UUID of the page to move")],
-    parent: Annotated[str, Field(description="JSON string for the new parent object, e.g. '{\"type\": \"page_id\", \"page_id\": \"...\"}'")],
+    parent: Annotated[str | dict, Field(description="JSON string or object for the new parent, e.g. {\"type\": \"page_id\", \"page_id\": \"...\"}")],
 ) -> str:
     """Move a Notion page to a new parent.
 
-    IMPORTANT: The parent parameter must be passed as a JSON-encoded string, NOT as an object.
-
     Args:
         page_id: The UUID of the page to move.
-        parent: JSON string for the new parent object,
-            e.g. '{"type": "page_id", "page_id": "..."}'.
+        parent: JSON string or object for the new parent object,
+            e.g. {"type": "page_id", "page_id": "..."}.
     """
     try:
         result = get_client().move_page(

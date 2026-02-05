@@ -50,6 +50,8 @@ def get_block_children(
 def append_block_children(block_id: str, children: str) -> str:
     """Append child blocks to a Notion block.
 
+    IMPORTANT: The children parameter must be passed as a JSON-encoded string, NOT as an object.
+
     Args:
         block_id: The UUID of the parent block to append children to.
         children: JSON string for a list of block objects to append.
@@ -71,10 +73,12 @@ def update_block(
 ) -> str:
     """Update a Notion block.
 
+    IMPORTANT: The content parameter must be passed as a JSON-encoded string, NOT as an object.
+
     Args:
         block_id: The UUID of the block to update.
         content: JSON string of block properties to update. The keys depend
-            on the block type (e.g. {"paragraph": {"rich_text": [...]}}).
+            on the block type (e.g. '{"paragraph": {"rich_text": [...]}}').
     """
     try:
         kwargs: dict[str, Any] = {}

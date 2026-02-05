@@ -17,14 +17,16 @@ def create_page(
 ) -> str:
     """Create a new Notion page.
 
+    IMPORTANT: All structured parameters must be passed as JSON-encoded strings, NOT as objects.
+
     Args:
-        parent: JSON string for the parent object, e.g. {"type": "page_id", "page_id": "..."}.
+        parent: JSON string for the parent object, e.g. '{"type": "page_id", "page_id": "..."}'.
         properties: JSON string for the page properties mapping.
         children: Optional JSON string for a list of block children to append.
             Cannot be used together with template.
         template: Optional JSON string for a data-source template, e.g.
-            {"type": "none"}, {"type": "default"}, or
-            {"type": "template_id", "template_id": "<uuid>"}.
+            '{"type": "none"}', '{"type": "default"}', or
+            '{"type": "template_id", "template_id": "<uuid>"}'.
     """
     try:
         result = get_client().create_page(
@@ -61,6 +63,8 @@ def update_page(
     cover: str | None = None,
 ) -> str:
     """Update a Notion page's properties, icon, or cover.
+
+    IMPORTANT: All structured parameters must be passed as JSON-encoded strings, NOT as objects.
 
     Args:
         page_id: The UUID of the page to update.
@@ -106,10 +110,12 @@ def archive_page(page_id: str) -> str:
 def move_page(page_id: str, parent: str) -> str:
     """Move a Notion page to a new parent.
 
+    IMPORTANT: The parent parameter must be passed as a JSON-encoded string, NOT as an object.
+
     Args:
         page_id: The UUID of the page to move.
         parent: JSON string for the new parent object,
-            e.g. {"type": "page_id", "page_id": "..."}.
+            e.g. '{"type": "page_id", "page_id": "..."}'.
     """
     try:
         result = get_client().move_page(

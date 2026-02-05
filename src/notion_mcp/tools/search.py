@@ -17,12 +17,14 @@ def search(
 ) -> str:
     """Search Notion pages and databases.
 
+    IMPORTANT: filter and sort must be passed as JSON-encoded strings, NOT as objects.
+
     Args:
         query: Optional text query to search for.
         filter: Optional JSON string for a filter object,
-            e.g. {"value": "page", "property": "object"}.
+            e.g. '{"value": "page", "property": "object"}'.
         sort: Optional JSON string for a sort object,
-            e.g. {"direction": "ascending", "timestamp": "last_edited_time"}.
+            e.g. '{"direction": "ascending", "timestamp": "last_edited_time"}'.
         start_cursor: Optional cursor for pagination.
         page_size: Optional number of results per page.
     """

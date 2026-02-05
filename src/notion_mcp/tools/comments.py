@@ -15,11 +15,13 @@ def create_comment(
 ) -> str:
     """Create a comment on a Notion page or block.
 
+    IMPORTANT: parent and rich_text must be passed as JSON-encoded strings, NOT as objects.
+
     Args:
         parent: JSON string for the parent object,
-            e.g. {"page_id": "..."}.
+            e.g. '{"page_id": "..."}'.
         rich_text: JSON string for the rich-text content array,
-            e.g. [{"type": "text", "text": {"content": "Hello!"}}].
+            e.g. '[{"type": "text", "text": {"content": "Hello!"}}]'.
         discussion_id: Optional UUID of an existing discussion thread
             to reply to. Omit to start a new top-level comment.
     """

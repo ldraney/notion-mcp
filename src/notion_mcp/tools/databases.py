@@ -24,10 +24,12 @@ def create_database(
     In Notion API v2025-09-03, database properties live on data sources.
     Pass properties inside initial_data_source.properties.
 
+    IMPORTANT: All structured parameters must be passed as JSON-encoded strings, NOT as objects.
+
     Args:
-        parent: JSON string for the parent object, e.g. {"type": "page_id", "page_id": "..."}.
+        parent: JSON string for the parent object, e.g. '{"type": "page_id", "page_id": "..."}'.
         title: JSON string for the title rich-text array,
-            e.g. [{"type": "text", "text": {"content": "My DB"}}].
+            e.g. '[{"type": "text", "text": {"content": "My DB"}}]'.
         initial_data_source: Optional JSON string for the initial data source
             configuration including properties.
     """
@@ -68,6 +70,8 @@ def update_database(
     cover: str | None = None,
 ) -> str:
     """Update a Notion database.
+
+    IMPORTANT: All structured parameters must be passed as JSON-encoded strings, NOT as objects.
 
     Args:
         database_id: The UUID of the database to update.
@@ -119,6 +123,8 @@ def query_database(
     Automatically resolves the first data source and queries it.
     If you already know the data source ID, use query_data_source instead.
 
+    IMPORTANT: filter and sorts must be passed as JSON-encoded strings, NOT as objects.
+
     Args:
         database_id: The UUID of the database to query.
         filter: Optional JSON string for a filter object.
@@ -165,6 +171,8 @@ def update_data_source(
 ) -> str:
     """Update a Notion data source.
 
+    IMPORTANT: The properties parameter must be passed as a JSON-encoded string, NOT as an object.
+
     Args:
         data_source_id: The UUID of the data source to update.
         properties: Optional JSON string for properties to update.
@@ -188,6 +196,8 @@ def query_data_source(
     page_size: int | None = None,
 ) -> str:
     """Query rows in a Notion data source.
+
+    IMPORTANT: filter and sorts must be passed as JSON-encoded strings, NOT as objects.
 
     Args:
         data_source_id: The UUID of the data source to query.

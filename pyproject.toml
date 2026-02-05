@@ -3,15 +3,15 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "notion-mcp"
-version = "0.1.0"
+name = "ldraney-notion-mcp"
+version = "0.1.1"
 description = "MCP server wrapping the Notion Python SDK (v2025-09-03)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 dependencies = [
     "mcp>=1.0",
-    "notion-sdk @ git+https://github.com/ldraney/notion-sdk.git",
+    "ldraney-notion-sdk>=0.1.0",
 ]
 
 [project.optional-dependencies]

@@ -62,7 +62,7 @@ Every method in `notion-sdk` maps to an MCP tool, organized by module:
 |---|---|---|
 | `search` | `search()` | `POST /v1/search` |
 
-**21 tools total** covering the complete Notion API v2025-09-03 surface.
+**24 tools total** covering the complete Notion API v2025-09-03 surface.
 
 ## Architecture
 

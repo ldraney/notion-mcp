@@ -12,19 +12,17 @@ from ..server import mcp, get_client, _parse_json, _error_response
 
 @mcp.tool()
 def create_comment(
-    parent: Annotated[str, Field(description="JSON string for the parent object, e.g. '{\"page_id\": \"...\"}'")],
-    rich_text: Annotated[str, Field(description="JSON string for the rich-text content array, e.g. '[{\"type\": \"text\", \"text\": {\"content\": \"Hello!\"}}]'")],
+    parent: Annotated[str | dict, Field(description="JSON string or object for the parent, e.g. {\"page_id\": \"...\"}")],
+    rich_text: Annotated[str | list, Field(description="JSON string or array for the rich-text content, e.g. [{\"type\": \"text\", \"text\": {\"content\": \"Hello!\"}}]")],
     discussion_id: Annotated[str | None, Field(description="UUID of an existing discussion thread to reply to. Omit to start a new top-level comment.")] = None,
 ) -> str:
     """Create a comment on a Notion page or block.
 
-    IMPORTANT: parent and rich_text must be passed as JSON-encoded strings, NOT as objects.
-
     Args:
-        parent: JSON string for the parent object,
-            e.g. '{"page_id": "..."}'.
-        rich_text: JSON string for the rich-text content array,
-            e.g. '[{"type": "text", "text": {"content": "Hello!"}}]'.
+        parent: JSON string or object for the parent,
+            e.g. {"page_id": "..."}.
+        rich_text: JSON string or array for the rich-text content,
+            e.g. [{"type": "text", "text": {"content": "Hello!"}}].
         discussion_id: Optional UUID of an existing discussion thread
             to reply to. Omit to start a new top-level comment.
     """

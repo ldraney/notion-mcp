@@ -500,6 +500,225 @@ class TestErrorHandling:
 
 
 # ---------------------------------------------------------------------------
+# Raw dict/list parameter tests (no JSON string encoding)
+# ---------------------------------------------------------------------------
+
+
+class TestRawDictParams:
+    """Verify that passing native dicts/lists (not JSON strings) works.
+
+    LLMs often send raw objects instead of JSON-encoded strings.  The widened
+    type annotations (str | dict, str | list, etc.) let pydantic accept them,
+    and _parse_json already passes them through unchanged.
+    """
+
+    def test_create_page_raw_dict(self, mock_client):
+        from notion_mcp.tools.pages import create_page
+
+        mock_client.create_page.return_value = {"id": "page-raw"}
+        result = create_page(
+            parent={"type": "page_id", "page_id": "abc"},
+            properties={"title": [{"text": {"content": "Raw"}}]},
+        )
+        parsed = json.loads(result)
+        assert parsed["id"] == "page-raw"
+        mock_client.create_page.assert_called_once_with(
+            parent={"type": "page_id", "page_id": "abc"},
+            properties={"title": [{"text": {"content": "Raw"}}]},
+            children=None,
+            template=None,
+        )
+
+    def test_create_page_raw_children_list(self, mock_client):
+        from notion_mcp.tools.pages import create_page
+
+        mock_client.create_page.return_value = {"id": "page-ch"}
+        children = [{"object": "block", "type": "paragraph"}]
+        result = create_page(
+            parent={"type": "page_id", "page_id": "abc"},
+            properties={"title": []},
+            children=children,
+        )
+        parsed = json.loads(result)
+        assert parsed["id"] == "page-ch"
+        call_kwargs = mock_client.create_page.call_args.kwargs
+        assert call_kwargs["children"] == children
+
+    def test_create_page_raw_template_dict(self, mock_client):
+        from notion_mcp.tools.pages import create_page
+
+        mock_client.create_page.return_value = {"id": "page-tmpl"}
+        template = {"type": "template_id", "template_id": "tmpl-abc"}
+        result = create_page(
+            parent={"type": "page_id", "page_id": "abc"},
+            properties={"title": []},
+            template=template,
+        )
+        parsed = json.loads(result)
+        assert parsed["id"] == "page-tmpl"
+        mock_client.create_page.assert_called_once_with(
+            parent={"type": "page_id", "page_id": "abc"},
+            properties={"title": []},
+            children=None,
+            template=template,
+        )
+
+    def test_update_page_raw_dicts(self, mock_client):
+        from notion_mcp.tools.pages import update_page
+
+        mock_client.update_page.return_value = {"id": "page-1"}
+        result = update_page(
+            page_id="page-1",
+            properties={"title": [{"text": {"content": "New"}}]},
+            icon={"type": "emoji", "emoji": "X"},
+            cover={"type": "external", "external": {"url": "https://example.com"}},
+        )
+        parsed = json.loads(result)
+        assert parsed["id"] == "page-1"
+        mock_client.update_page.assert_called_once_with(
+            "page-1",
+            erase_content=None,
+            properties={"title": [{"text": {"content": "New"}}]},
+            icon={"type": "emoji", "emoji": "X"},
+            cover={"type": "external", "external": {"url": "https://example.com"}},
+        )
+
+    def test_move_page_raw_dict(self, mock_client):
+        from notion_mcp.tools.pages import move_page
+
+        mock_client.move_page.return_value = {"id": "page-1"}
+        parent = {"type": "page_id", "page_id": "new-parent"}
+        result = move_page(page_id="page-1", parent=parent)
+        parsed = json.loads(result)
+        assert parsed["id"] == "page-1"
+        mock_client.move_page.assert_called_once_with("page-1", parent=parent)
+
+    def test_create_database_raw(self, mock_client):
+        from notion_mcp.tools.databases import create_database
+
+        mock_client.create_database.return_value = {"id": "db-raw"}
+        result = create_database(
+            parent={"type": "page_id", "page_id": "abc"},
+            title=[{"type": "text", "text": {"content": "My DB"}}],
+            initial_data_source={"properties": {"Name": {"title": {}}}},
+        )
+        parsed = json.loads(result)
+        assert parsed["id"] == "db-raw"
+        mock_client.create_database.assert_called_once_with(
+            parent={"type": "page_id", "page_id": "abc"},
+            title=[{"type": "text", "text": {"content": "My DB"}}],
+            initial_data_source={"properties": {"Name": {"title": {}}}},
+        )
+
+    def test_update_database_raw(self, mock_client):
+        from notion_mcp.tools.databases import update_database
+
+        mock_client.update_database.return_value = {"id": "db-1"}
+        result = update_database(
+            database_id="db-1",
+            title=[{"type": "text", "text": {"content": "Renamed"}}],
+            description=[{"type": "text", "text": {"content": "Desc"}}],
+            icon={"type": "emoji", "emoji": "X"},
+            cover={"type": "external", "external": {"url": "https://x.com"}},
+        )
+        parsed = json.loads(result)
+        assert parsed["id"] == "db-1"
+
+    def test_query_database_raw(self, mock_client):
+        from notion_mcp.tools.databases import query_database
+
+        mock_client.query_database.return_value = {"results": [], "has_more": False}
+        filter_obj = {"property": "Status", "select": {"equals": "Done"}}
+        sorts_obj = [{"property": "Created", "direction": "descending"}]
+        result = query_database("db-1", filter=filter_obj, sorts=sorts_obj)
+        parsed = json.loads(result)
+        assert parsed["has_more"] is False
+        mock_client.query_database.assert_called_once_with(
+            "db-1",
+            filter=filter_obj,
+            sorts=sorts_obj,
+            start_cursor=None,
+            page_size=None,
+        )
+
+    def test_update_data_source_raw(self, mock_client):
+        from notion_mcp.tools.databases import update_data_source
+
+        mock_client.update_data_source.return_value = {"id": "ds-1"}
+        props = {"Name": {"title": {}}}
+        result = update_data_source("ds-1", properties=props)
+        parsed = json.loads(result)
+        assert parsed["id"] == "ds-1"
+
+    def test_query_data_source_raw(self, mock_client):
+        from notion_mcp.tools.databases import query_data_source
+
+        mock_client.query_data_source.return_value = {"results": []}
+        filter_obj = {"property": "Done", "checkbox": {"equals": True}}
+        sorts_obj = [{"property": "Name", "direction": "ascending"}]
+        result = query_data_source("ds-1", filter=filter_obj, sorts=sorts_obj)
+        parsed = json.loads(result)
+        assert "results" in parsed
+
+    def test_append_block_children_raw(self, mock_client):
+        from notion_mcp.tools.blocks import append_block_children
+
+        mock_client.append_block_children.return_value = {"results": [{"id": "b1"}]}
+        children = [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": []}}]
+        result = append_block_children("block-1", children=children)
+        parsed = json.loads(result)
+        assert len(parsed["results"]) == 1
+        mock_client.append_block_children.assert_called_once_with(
+            "block-1", children=children,
+        )
+
+    def test_update_block_raw(self, mock_client):
+        from notion_mcp.tools.blocks import update_block
+
+        mock_client.update_block.return_value = {"id": "block-1"}
+        content = {"paragraph": {"rich_text": [{"text": {"content": "updated"}}]}}
+        result = update_block("block-1", content=content)
+        parsed = json.loads(result)
+        assert parsed["id"] == "block-1"
+        mock_client.update_block.assert_called_once_with(
+            "block-1",
+            paragraph={"rich_text": [{"text": {"content": "updated"}}]},
+        )
+
+    def test_create_comment_raw(self, mock_client):
+        from notion_mcp.tools.comments import create_comment
+
+        mock_client.create_comment.return_value = {"id": "comment-raw"}
+        result = create_comment(
+            parent={"page_id": "page-1"},
+            rich_text=[{"type": "text", "text": {"content": "Nice!"}}],
+        )
+        parsed = json.loads(result)
+        assert parsed["id"] == "comment-raw"
+        mock_client.create_comment.assert_called_once_with(
+            parent={"page_id": "page-1"},
+            rich_text=[{"type": "text", "text": {"content": "Nice!"}}],
+        )
+
+    def test_search_raw(self, mock_client):
+        from notion_mcp.tools.search import search
+
+        mock_client.search.return_value = {"results": [], "has_more": False}
+        filter_obj = {"value": "page", "property": "object"}
+        sort_obj = {"direction": "ascending", "timestamp": "last_edited_time"}
+        result = search(query="test", filter=filter_obj, sort=sort_obj)
+        parsed = json.loads(result)
+        assert parsed["has_more"] is False
+        mock_client.search.assert_called_once_with(
+            query="test",
+            filter=filter_obj,
+            sort=sort_obj,
+            start_cursor=None,
+            page_size=None,
+        )
+
+
+# ---------------------------------------------------------------------------
 # Helper tests
 # ---------------------------------------------------------------------------
 

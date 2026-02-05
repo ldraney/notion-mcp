@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import json
+from typing import Annotated
+
+from pydantic import Field
 
 from ..server import mcp, get_client, _error_response
 
 
 @mcp.tool()
 def get_users(
-    start_cursor: str | None = None,
-    page_size: int | None = None,
+    start_cursor: Annotated[str | None, Field(description="Cursor for pagination")] = None,
+    page_size: Annotated[int | None, Field(description="Number of results per page")] = None,
 ) -> str:
     """List all users in the Notion workspace.
 

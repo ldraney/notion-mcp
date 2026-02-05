@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from ..server import mcp, get_client, _parse_json, _error_response
 
 
 @mcp.tool()
-def get_block(block_id: str) -> str:
+def get_block(
+    block_id: Annotated[str, Field(description="The UUID of the block to retrieve")],
+) -> str:
     """Retrieve a Notion block by its ID.
 
     Args:
@@ -24,9 +28,9 @@ def get_block(block_id: str) -> str:
 
 @mcp.tool()
 def get_block_children(
-    block_id: str,
-    start_cursor: str | None = None,
-    page_size: int | None = None,
+    block_id: Annotated[str, Field(description="The UUID of the parent block")],
+    start_cursor: Annotated[str | None, Field(description="Cursor for pagination")] = None,
+    page_size: Annotated[int | None, Field(description="Number of results per page")] = None,
 ) -> str:
     """List child blocks of a Notion block.
 
@@ -47,7 +51,10 @@ def get_block_children(
 
 
 @mcp.tool()
-def append_block_children(block_id: str, children: str) -> str:
+def append_block_children(
+    block_id: Annotated[str, Field(description="The UUID of the parent block to append children to")],
+    children: Annotated[str, Field(description="JSON string for a list of block objects to append, e.g. '[{\"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": {\"rich_text\": [{\"type\": \"text\", \"text\": {\"content\": \"Hello\"}}]}}]'")],
+) -> str:
     """Append child blocks to a Notion block.
 
     IMPORTANT: The children parameter must be passed as a JSON-encoded string, NOT as an object.
@@ -68,8 +75,8 @@ def append_block_children(block_id: str, children: str) -> str:
 
 @mcp.tool()
 def update_block(
-    block_id: str,
-    content: str | None = None,
+    block_id: Annotated[str, Field(description="The UUID of the block to update")],
+    content: Annotated[str | None, Field(description="JSON string of block properties to update. The keys depend on the block type, e.g. '{\"paragraph\": {\"rich_text\": [{\"type\": \"text\", \"text\": {\"content\": \"Updated text\"}}]}}'")] = None,
 ) -> str:
     """Update a Notion block.
 
@@ -91,7 +98,9 @@ def update_block(
 
 
 @mcp.tool()
-def delete_block(block_id: str) -> str:
+def delete_block(
+    block_id: Annotated[str, Field(description="The UUID of the block to delete")],
+) -> str:
     """Delete (archive) a Notion block.
 
     Args:

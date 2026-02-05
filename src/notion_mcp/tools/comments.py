@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import json
+from typing import Annotated
+
+from pydantic import Field
 
 from ..server import mcp, get_client, _parse_json, _error_response
 
 
 @mcp.tool()
 def create_comment(
-    parent: str,
-    rich_text: str,
-    discussion_id: str | None = None,
+    parent: Annotated[str, Field(description="JSON string for the parent object, e.g. '{\"page_id\": \"...\"}'")],
+    rich_text: Annotated[str, Field(description="JSON string for the rich-text content array, e.g. '[{\"type\": \"text\", \"text\": {\"content\": \"Hello!\"}}]'")],
+    discussion_id: Annotated[str | None, Field(description="UUID of an existing discussion thread to reply to. Omit to start a new top-level comment.")] = None,
 ) -> str:
     """Create a comment on a Notion page or block.
 
@@ -41,9 +44,9 @@ def create_comment(
 
 @mcp.tool()
 def get_comments(
-    block_id: str,
-    start_cursor: str | None = None,
-    page_size: int | None = None,
+    block_id: Annotated[str, Field(description="The UUID of the block or page to list comments for")],
+    start_cursor: Annotated[str | None, Field(description="Cursor for pagination")] = None,
+    page_size: Annotated[int | None, Field(description="Number of results per page")] = None,
 ) -> str:
     """List comments on a Notion block or page.
 

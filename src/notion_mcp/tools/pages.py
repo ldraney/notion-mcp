@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from ..server import mcp, get_client, _parse_json, _error_response
 
 
 @mcp.tool()
 def create_page(
-    parent: str,
-    properties: str,
-    children: str | None = None,
-    template: str | None = None,
+    parent: Annotated[str, Field(description="JSON string for the parent object, e.g. '{\"type\": \"page_id\", \"page_id\": \"...\"}'")],
+    properties: Annotated[str, Field(description="JSON string for the page properties mapping, e.g. '{\"title\": [{\"text\": {\"content\": \"My Page\"}}]}'")],
+    children: Annotated[str | None, Field(description="JSON string for a list of block children to append. Cannot be used together with template.")] = None,
+    template: Annotated[str | None, Field(description="JSON string for a data-source template, e.g. '{\"type\": \"none\"}', '{\"type\": \"default\"}', or '{\"type\": \"template_id\", \"template_id\": \"<uuid>\"}'")] = None,
 ) -> str:
     """Create a new Notion page.
 
@@ -41,7 +43,9 @@ def create_page(
 
 
 @mcp.tool()
-def get_page(page_id: str) -> str:
+def get_page(
+    page_id: Annotated[str, Field(description="The UUID of the page to retrieve")],
+) -> str:
     """Retrieve a Notion page by its ID.
 
     Args:
@@ -56,11 +60,11 @@ def get_page(page_id: str) -> str:
 
 @mcp.tool()
 def update_page(
-    page_id: str,
-    properties: str | None = None,
-    erase_content: bool | None = None,
-    icon: str | None = None,
-    cover: str | None = None,
+    page_id: Annotated[str, Field(description="The UUID of the page to update")],
+    properties: Annotated[str | None, Field(description="JSON string of properties to update, e.g. '{\"Name\": {\"title\": [{\"text\": {\"content\": \"New Title\"}}]}}'")] = None,
+    erase_content: Annotated[bool | None, Field(description="If true, clears ALL block content from the page. WARNING: This is destructive and irreversible.")] = None,
+    icon: Annotated[str | None, Field(description="JSON string for the page icon, e.g. '{\"type\": \"emoji\", \"emoji\": \"🎉\"}'")] = None,
+    cover: Annotated[str | None, Field(description="JSON string for the page cover, e.g. '{\"type\": \"external\", \"external\": {\"url\": \"https://...\"}}'")] = None,
 ) -> str:
     """Update a Notion page's properties, icon, or cover.
 
@@ -93,7 +97,9 @@ def update_page(
 
 
 @mcp.tool()
-def archive_page(page_id: str) -> str:
+def archive_page(
+    page_id: Annotated[str, Field(description="The UUID of the page to archive")],
+) -> str:
     """Archive (soft-delete) a Notion page.
 
     Args:
@@ -107,7 +113,10 @@ def archive_page(page_id: str) -> str:
 
 
 @mcp.tool()
-def move_page(page_id: str, parent: str) -> str:
+def move_page(
+    page_id: Annotated[str, Field(description="The UUID of the page to move")],
+    parent: Annotated[str, Field(description="JSON string for the new parent object, e.g. '{\"type\": \"page_id\", \"page_id\": \"...\"}'")],
+) -> str:
     """Move a Notion page to a new parent.
 
     IMPORTANT: The parent parameter must be passed as a JSON-encoded string, NOT as an object.

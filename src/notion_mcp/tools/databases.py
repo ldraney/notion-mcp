@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from ..server import mcp, get_client, _parse_json, _error_response
 
@@ -15,9 +17,9 @@ from ..server import mcp, get_client, _parse_json, _error_response
 
 @mcp.tool()
 def create_database(
-    parent: str,
-    title: str,
-    initial_data_source: str | None = None,
+    parent: Annotated[str, Field(description="JSON string for the parent object, e.g. '{\"type\": \"page_id\", \"page_id\": \"...\"}'")],
+    title: Annotated[str, Field(description="JSON string for the title rich-text array, e.g. '[{\"type\": \"text\", \"text\": {\"content\": \"My DB\"}}]'")],
+    initial_data_source: Annotated[str | None, Field(description="JSON string for the initial data source configuration including properties")] = None,
 ) -> str:
     """Create a new Notion database.
 
@@ -45,7 +47,9 @@ def create_database(
 
 
 @mcp.tool()
-def get_database(database_id: str) -> str:
+def get_database(
+    database_id: Annotated[str, Field(description="The UUID of the database to retrieve")],
+) -> str:
     """Retrieve a Notion database by its ID.
 
     Note: In v2025-09-03 the response contains data_sources but NOT
@@ -63,11 +67,11 @@ def get_database(database_id: str) -> str:
 
 @mcp.tool()
 def update_database(
-    database_id: str,
-    title: str | None = None,
-    description: str | None = None,
-    icon: str | None = None,
-    cover: str | None = None,
+    database_id: Annotated[str, Field(description="The UUID of the database to update")],
+    title: Annotated[str | None, Field(description="JSON string for the new title rich-text array, e.g. '[{\"type\": \"text\", \"text\": {\"content\": \"New Title\"}}]'")] = None,
+    description: Annotated[str | None, Field(description="JSON string for the description rich-text array, e.g. '[{\"type\": \"text\", \"text\": {\"content\": \"A description\"}}]'")] = None,
+    icon: Annotated[str | None, Field(description="JSON string for the database icon, e.g. '{\"type\": \"emoji\", \"emoji\": \"📊\"}'")] = None,
+    cover: Annotated[str | None, Field(description="JSON string for the database cover, e.g. '{\"type\": \"external\", \"external\": {\"url\": \"https://...\"}}'")] = None,
 ) -> str:
     """Update a Notion database.
 
@@ -97,7 +101,9 @@ def update_database(
 
 
 @mcp.tool()
-def archive_database(database_id: str) -> str:
+def archive_database(
+    database_id: Annotated[str, Field(description="The UUID of the database to archive")],
+) -> str:
     """Archive a Notion database.
 
     Args:
@@ -112,11 +118,11 @@ def archive_database(database_id: str) -> str:
 
 @mcp.tool()
 def query_database(
-    database_id: str,
-    filter: str | None = None,
-    sorts: str | None = None,
-    start_cursor: str | None = None,
-    page_size: int | None = None,
+    database_id: Annotated[str, Field(description="The UUID of the database to query")],
+    filter: Annotated[str | None, Field(description="JSON string for a filter object, e.g. '{\"property\": \"Status\", \"select\": {\"equals\": \"Done\"}}'")] = None,
+    sorts: Annotated[str | None, Field(description="JSON string for a list of sort objects, e.g. '[{\"property\": \"Created\", \"direction\": \"descending\"}]'")] = None,
+    start_cursor: Annotated[str | None, Field(description="Cursor for pagination")] = None,
+    page_size: Annotated[int | None, Field(description="Number of results per page")] = None,
 ) -> str:
     """Query a Notion database for pages/rows.
 
@@ -151,7 +157,9 @@ def query_database(
 
 
 @mcp.tool()
-def get_data_source(data_source_id: str) -> str:
+def get_data_source(
+    data_source_id: Annotated[str, Field(description="The UUID of the data source to retrieve")],
+) -> str:
     """Retrieve a Notion data source (includes properties).
 
     Args:
@@ -166,8 +174,8 @@ def get_data_source(data_source_id: str) -> str:
 
 @mcp.tool()
 def update_data_source(
-    data_source_id: str,
-    properties: str | None = None,
+    data_source_id: Annotated[str, Field(description="The UUID of the data source to update")],
+    properties: Annotated[str | None, Field(description="JSON string for properties to update, e.g. '{\"Name\": {\"title\": {}}, \"Tags\": {\"multi_select\": {}}}'")] = None,
 ) -> str:
     """Update a Notion data source.
 
@@ -189,11 +197,11 @@ def update_data_source(
 
 @mcp.tool()
 def query_data_source(
-    data_source_id: str,
-    filter: str | None = None,
-    sorts: str | None = None,
-    start_cursor: str | None = None,
-    page_size: int | None = None,
+    data_source_id: Annotated[str, Field(description="The UUID of the data source to query")],
+    filter: Annotated[str | None, Field(description="JSON string for a filter object, e.g. '{\"property\": \"Status\", \"select\": {\"equals\": \"Done\"}}'")] = None,
+    sorts: Annotated[str | None, Field(description="JSON string for a list of sort objects, e.g. '[{\"property\": \"Created\", \"direction\": \"descending\"}]'")] = None,
+    start_cursor: Annotated[str | None, Field(description="Cursor for pagination")] = None,
+    page_size: Annotated[int | None, Field(description="Number of results per page")] = None,
 ) -> str:
     """Query rows in a Notion data source.
 
@@ -221,10 +229,10 @@ def query_data_source(
 
 @mcp.tool()
 def list_data_source_templates(
-    data_source_id: str,
-    name: str | None = None,
-    start_cursor: str | None = None,
-    page_size: int | None = None,
+    data_source_id: Annotated[str, Field(description="The UUID of the data source")],
+    name: Annotated[str | None, Field(description="Name filter for templates")] = None,
+    start_cursor: Annotated[str | None, Field(description="Cursor for pagination")] = None,
+    page_size: Annotated[int | None, Field(description="Number of results per page")] = None,
 ) -> str:
     """List templates for a Notion data source.
 

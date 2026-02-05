@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ldraney-notion-mcp"
-version = "0.1.1"
+version = "0.1.2"
 description = "MCP server wrapping the Notion Python SDK (v2025-09-03)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,6 +13,9 @@ dependencies = [
     "mcp>=1.0",
     "ldraney-notion-sdk>=0.1.0",
 ]
+
+[project.scripts]
+ldraney-notion-mcp = "notion_mcp.server:main"
 
 [project.optional-dependencies]
 dev = [

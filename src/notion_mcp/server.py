@@ -72,3 +72,8 @@ def _error_response(exc: Exception) -> str:
 from .tools import register_all_tools  # noqa: E402
 
 register_all_tools()
+
+
+def main() -> None:
+    """Entry point for the console script."""
+    mcp.run()

@@ -89,16 +89,19 @@ jobs:
           fi
 
       - name: Set up Node.js
+        if: steps.pypi_check.outputs.exists == 'false'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
       - name: Install mcpb and build .mcpb bundle
+        if: steps.pypi_check.outputs.exists == 'false'
         run: |
           npm install -g @anthropic-ai/mcpb
           mcpb pack
 
       - name: Rename .mcpb to consistent filename
+        if: steps.pypi_check.outputs.exists == 'false'
         run: |
           MCPB_FILE=$(ls *.mcpb 2>/dev/null | head -1)
           if [ -z "$MCPB_FILE" ]; then
@@ -111,6 +114,7 @@ jobs:
           echo "Bundle ready: ldraney-notion-mcp.mcpb"
 
       - name: Create GitHub Release
+        if: steps.pypi_check.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -125,5 +129,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add manifest.json
-          git commit -m "ci: sync manifest.json version to ${{ steps.version.outputs.version }}"
+          git commit -m "ci: sync manifest.json version to ${{ steps.version.outputs.version }} [skip ci]"
           git push

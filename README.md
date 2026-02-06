@@ -6,6 +6,39 @@ MCP (Model Context Protocol) server that wraps [`ldraney/notion-sdk`](https://gi
 
 This project exposes the full Notion Python SDK as MCP tools, allowing AI assistants (Claude, etc.) to interact with Notion workspaces through a standardized tool interface.
 
+## Why this over the official Notion MCP servers?
+
+### The problem
+
+There are two official Notion MCP implementations:
+
+1. **Open-source [`makenotion/notion-mcp-server`](https://github.com/makenotion/notion-mcp-server)** (TypeScript) — marked "no longer actively maintained"
+2. **Closed-source hosted MCP at `mcp.notion.com`** — what Claude Desktop's "Connections > Notion" uses
+
+Neither works reliably. This is well-documented in issues like [#142](https://github.com/makenotion/notion-mcp-server/issues/142) ("Two Notion MCP servers, neither work well"). The open-source server was abandoned for 3.5 months after the v2025-09-03 breaking API change, shipped a broken v2.0.0 (Dec 2025), and still has open showstopper bugs in v2.1.0.
+
+### Comparison
+
+| | Official open-source | Official hosted | `ldraney-notion-mcp` |
+|---|---|---|---|
+| Status | "No longer actively maintained" | Closed-source | Actively maintained |
+| Language | TypeScript | N/A | Python |
+| API version | 2025-09-03 (broken) | Unknown | 2025-09-03 (working) |
+| Auth | Bearer token (version header trap) | OAuth only | Bearer token (correct headers always) |
+| Serialization | Double-stringifies nested objects ([#196](https://github.com/makenotion/notion-mcp-server/issues/196)) | N/A | Accepts both JSON strings and raw objects |
+| Property updates | Blocked by `additionalProperties: false` ([#184](https://github.com/makenotion/notion-mcp-server/issues/184)) | Unknown | Works correctly |
+| Database queries | `retrieve-a-database` was missing for 5 weeks | Some tools gated to Enterprise | `query_database` auto-resolves data sources |
+| Tool count | 22 | ~10 | 24 |
+| Convenience tools | None | Limited | `archive_page`, `archive_database`, `query_database` |
+| Install | npm | Claude Desktop only | PyPI (`uvx`), `.mcpb` (planned) |
+
+### Key advantages
+
+- **Correct API headers always** — Built on [`ldraney-notion-sdk`](https://github.com/ldraney/notion-sdk), which always sends the `Notion-Version: 2025-09-03` header correctly
+- **LLM-friendly parameter handling** — `str | dict` union types so tools don't break when LLMs pass raw objects instead of JSON strings
+- **Convenience tools** — Operations like `archive_page`, `archive_database`, and `query_database` (with auto data-source resolution) reduce multi-step workflows to single calls
+- **Works everywhere** — `uvx`, `pip`, Claude Code, any MCP-compatible client
+
 ## SDK Coverage
 
 Every method in `notion-sdk` maps to an MCP tool, organized by module:

@@ -1,0 +1,62 @@
+{
+  "manifest_version": "0.4",
+  "name": "ldraney-notion-mcp",
+  "display_name": "Notion",
+  "version": "0.1.5",
+  "description": "MCP server for the Notion API v2025-09-03 — read, create, and manage pages, databases, blocks, comments, and users.",
+  "author": {
+    "name": "ldraney"
+  },
+  "server": {
+    "type": "uv",
+    "entry_point": "src/run_server.py",
+    "mcp_config": {
+      "env": {
+        "NOTION_API_KEY": "${user_config.notion_api_key}"
+      }
+    }
+  },
+  "user_config": {
+    "notion_api_key": {
+      "type": "string",
+      "title": "Notion API Key",
+      "description": "Your Notion internal integration token. Create one at https://www.notion.so/my-integrations",
+      "sensitive": true,
+      "required": true
+    }
+  },
+  "tools": [
+    { "name": "create_page", "description": "Create a new Notion page" },
+    { "name": "get_page", "description": "Retrieve a Notion page by ID" },
+    { "name": "update_page", "description": "Update a Notion page's properties, icon, or cover" },
+    { "name": "archive_page", "description": "Archive (soft-delete) a Notion page" },
+    { "name": "move_page", "description": "Move a Notion page to a new parent" },
+    { "name": "create_database", "description": "Create a new Notion database" },
+    { "name": "get_database", "description": "Retrieve a Notion database by ID" },
+    { "name": "update_database", "description": "Update a Notion database" },
+    { "name": "archive_database", "description": "Archive a Notion database" },
+    { "name": "query_database", "description": "Query a Notion database for pages/rows" },
+    { "name": "get_data_source", "description": "Retrieve a Notion data source (includes properties)" },
+    { "name": "update_data_source", "description": "Update a Notion data source" },
+    { "name": "query_data_source", "description": "Query rows in a Notion data source" },
+    { "name": "list_data_source_templates", "description": "List templates for a Notion data source" },
+    { "name": "get_block", "description": "Retrieve a Notion block by ID" },
+    { "name": "get_block_children", "description": "List child blocks of a Notion block" },
+    { "name": "append_block_children", "description": "Append child blocks to a Notion block" },
+    { "name": "update_block", "description": "Update a Notion block" },
+    { "name": "delete_block", "description": "Delete (archive) a Notion block" },
+    { "name": "get_users", "description": "List all users in the Notion workspace" },
+    { "name": "get_self", "description": "Retrieve the bot user for the current API token" },
+    { "name": "create_comment", "description": "Create a comment on a Notion page or block" },
+    { "name": "get_comments", "description": "List comments on a Notion page or block" },
+    { "name": "search", "description": "Search Notion pages and databases" }
+  ],
+  "compatibility": {
+    "platforms": ["darwin", "linux", "win32"],
+    "runtimes": {
+      "python": ">=3.10"
+    }
+  },
+  "keywords": ["notion", "productivity", "api", "database", "wiki"],
+  "license": "MIT"
+}

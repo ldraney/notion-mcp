@@ -11,6 +11,8 @@
     "type": "uv",
     "entry_point": "src/run_server.py",
     "mcp_config": {
+      "command": "uvx",
+      "args": ["ldraney-notion-mcp"],
       "env": {
         "NOTION_API_KEY": "${user_config.notion_api_key}"
       }

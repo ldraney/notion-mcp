@@ -12,7 +12,7 @@ This project exposes the full Notion Python SDK as MCP tools, allowing AI assist
 
 There are two official Notion MCP implementations:
 
-1. **Open-source [`makenotion/notion-mcp-server`](https://github.com/makenotion/notion-mcp-server)** (TypeScript) — marked "no longer actively maintained"
+1. **Open-source [`makenotion/notion-mcp-server`](https://github.com/makenotion/notion-mcp-server)** (TypeScript) — issues and PRs "not actively monitored," may be sunset in the future
 2. **Closed-source hosted MCP at `mcp.notion.com`** — what Claude Desktop's "Connections > Notion" uses
 
 Neither works reliably. This is well-documented in issues like [#142](https://github.com/makenotion/notion-mcp-server/issues/142) ("Two Notion MCP servers, neither work well"). The open-source server was abandoned for 3.5 months after the v2025-09-03 breaking API change, shipped a broken v2.0.0 (Dec 2025), and still has open showstopper bugs in v2.1.0.
@@ -21,7 +21,7 @@ Neither works reliably. This is well-documented in issues like [#142](https://gi
 
 | | Official open-source | Official hosted | `ldraney-notion-mcp` |
 |---|---|---|---|
-| Status | "No longer actively maintained" | Closed-source | Actively maintained |
+| Status | "Not actively monitored" | Closed-source | Actively maintained |
 | Language | TypeScript | N/A | Python |
 | API version | 2025-09-03 (broken) | Unknown | 2025-09-03 (working) |
 | Auth | Bearer token (version header trap) | OAuth only | Bearer token (correct headers always) |

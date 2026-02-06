@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notion MCP Server — ldraney-notion-mcp</title>
+  <meta name="description" content="Connect Claude to your Notion workspace. 24 tools, latest API (v2025-09-03), actually works. Download for Claude Desktop or install via CLI.">
+  <style>
+    /* === Reset & Base === */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #fafafa;
+      --bg-alt: #ffffff;
+      --text: #1a1a2e;
+      --text-muted: #555;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #e2e8f0;
+      --green: #16a34a;
+      --red: #dc2626;
+      --yellow: #ca8a04;
+      --code-bg: #f1f5f9;
+      --table-header: #f8fafc;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-lg: 0 4px 14px rgba(0,0,0,0.1);
+      --radius: 8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* === Hero === */
+    .hero {
+      text-align: center;
+      padding: 80px 24px 64px;
+      background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 100%);
+    }
+
+    .hero h1 {
+      font-size: 2.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    .hero .subtitle {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto 40px;
+      line-height: 1.5;
+    }
+
+    .hero-ctas {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: var(--shadow-lg);
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      text-decoration: none;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    .btn-secondary:hover {
+      background: var(--code-bg);
+      text-decoration: none;
+    }
+
+    .btn-secondary code {
+      font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .hero-version {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    /* === Sections === */
+    section {
+      padding: 64px 0;
+    }
+
+    section + section {
+      border-top: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }
+
+    .section-subtitle {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      max-width: 700px;
+    }
+
+    /* === Why Section === */
+    .why-content p {
+      margin-bottom: 16px;
+      line-height: 1.7;
+    }
+
+    .why-content strong {
+      color: var(--text);
+    }
+
+    /* === Comparison Table === */
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: 0 -24px;
+      padding: 0 24px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.925rem;
+      background: var(--bg-alt);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    thead th {
+      background: var(--table-header);
+      padding: 14px 16px;
+      text-align: left;
+      font-weight: 700;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+
+    thead th:last-child {
+      background: #eef2ff;
+      color: var(--accent);
+    }
+
+    tbody td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody td:first-child {
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    tbody td:last-child {
+      color: var(--text);
+    }
+
+    .status-good { color: var(--green); font-weight: 600; }
+    .status-bad { color: var(--red); }
+    .status-warn { color: var(--yellow); }
+    .status-neutral { color: var(--text-muted); }
+
+    /* === Features === */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--bg-alt);
+      padding: 28px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .feature-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .feature-icon {
+      font-size: 1.5rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    /* === Install === */
+    .install-methods {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .install-card {
+      background: var(--bg-alt);
+      padding: 28px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .install-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .install-card ol {
+      padding-left: 20px;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.8;
+    }
+
+    .install-card ol li {
+      margin-bottom: 4px;
+    }
+
+    .install-card code {
+      font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .install-card a {
+      word-break: break-all;
+    }
+
+    .note {
+      margin-top: 24px;
+      padding: 16px 20px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: var(--radius);
+      font-size: 0.925rem;
+      color: #92400e;
+    }
+
+    .note strong {
+      color: #78350f;
+    }
+
+    /* === Footer === */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 16px;
+    }
+
+    .footer-links a {
+      color: var(--text-muted);
+    }
+    .footer-links a:hover {
+      color: var(--accent);
+    }
+
+    /* === Responsive === */
+    @media (max-width: 640px) {
+      .hero { padding: 48px 16px 40px; }
+      .hero h1 { font-size: 2rem; }
+      .hero .subtitle { font-size: 1.05rem; }
+      .btn { padding: 12px 20px; font-size: 0.95rem; }
+      section { padding: 48px 0; }
+      .section-title { font-size: 1.4rem; }
+      thead th, tbody td { padding: 10px 12px; font-size: 0.85rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="container">
+      <h1>Notion MCP Server</h1>
+      <p class="subtitle">Connect Claude to your Notion workspace &mdash; 24 tools, latest API, actually works.</p>
+      <div class="hero-ctas">
+        <a href="https://github.com/ldraney/notion-mcp/releases/latest/download/ldraney-notion-mcp.mcpb" class="btn btn-primary">
+          Download for Claude Desktop
+        </a>
+        <a href="#install" class="btn btn-secondary">
+          Install via CLI: <code>uvx ldraney-notion-mcp</code>
+        </a>
+      </div>
+      <p class="hero-version">v0.1.5 &middot; Python &ge; 3.10 &middot; MIT License</p>
+    </div>
+  </header>
+
+  <!-- Why This Exists -->
+  <section id="why">
+    <div class="container">
+      <h2 class="section-title">Why this exists</h2>
+      <p class="section-subtitle">There are two official Notion MCP servers. Neither works reliably.</p>
+      <div class="why-content">
+        <p>
+          <strong>The open-source <a href="https://github.com/makenotion/notion-mcp-server">makenotion/notion-mcp-server</a></strong>
+          (TypeScript) has issues and PRs that are "not actively monitored" and may be sunset.
+          It was abandoned for 3.5 months after the v2025-09-03 breaking API change, shipped a broken v2.0.0, and
+          still has open showstopper bugs &mdash; like double-stringifying nested objects and blocking property updates
+          with <code>additionalProperties: false</code>.
+        </p>
+        <p>
+          <strong>The closed-source hosted MCP at <code>mcp.notion.com</code></strong>
+          (what Claude Desktop's "Connections &gt; Notion" uses) is OAuth-only, has an unknown API version,
+          and gates some tools to Enterprise plans.
+        </p>
+        <p>
+          This is well-documented in issues like
+          <a href="https://github.com/makenotion/notion-mcp-server/issues/142">#142 &mdash; "Two Notion MCP servers, neither work well"</a>.
+          <strong>ldraney-notion-mcp</strong> is a clean-room Python implementation that actually works.
+          <a href="https://github.com/ldraney/notion-mcp#readme">Read the full README for details.</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison Table -->
+  <section id="comparison">
+    <div class="container">
+      <h2 class="section-title">Comparison</h2>
+      <p class="section-subtitle">How this project stacks up against the official options.</p>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Official open-source</th>
+              <th>Official hosted</th>
+              <th>ldraney-notion-mcp</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Status</td>
+              <td class="status-bad">"Not actively monitored"</td>
+              <td class="status-neutral">Closed-source</td>
+              <td class="status-good">Actively maintained</td>
+            </tr>
+            <tr>
+              <td>Language</td>
+              <td>TypeScript</td>
+              <td class="status-neutral">N/A</td>
+              <td>Python</td>
+            </tr>
+            <tr>
+              <td>API version</td>
+              <td class="status-bad">2025-09-03 (broken)</td>
+              <td class="status-neutral">Unknown</td>
+              <td class="status-good">2025-09-03 (working)</td>
+            </tr>
+            <tr>
+              <td>Auth</td>
+              <td class="status-warn">Bearer token (version header trap)</td>
+              <td class="status-warn">OAuth only</td>
+              <td class="status-good">Bearer token (correct headers always)</td>
+            </tr>
+            <tr>
+              <td>Serialization</td>
+              <td class="status-bad">Double-stringifies nested objects</td>
+              <td class="status-neutral">N/A</td>
+              <td class="status-good">Accepts JSON strings and raw objects</td>
+            </tr>
+            <tr>
+              <td>Property updates</td>
+              <td class="status-bad">Blocked by additionalProperties: false</td>
+              <td class="status-neutral">Unknown</td>
+              <td class="status-good">Works correctly</td>
+            </tr>
+            <tr>
+              <td>Database queries</td>
+              <td class="status-warn">retrieve-a-database was missing 5 weeks</td>
+              <td class="status-warn">Some tools gated to Enterprise</td>
+              <td class="status-good">Auto-resolves data sources</td>
+            </tr>
+            <tr>
+              <td>Tool count</td>
+              <td>22</td>
+              <td class="status-warn">~10</td>
+              <td class="status-good">24</td>
+            </tr>
+            <tr>
+              <td>Convenience tools</td>
+              <td>None</td>
+              <td>Limited</td>
+              <td class="status-good">archive_page, archive_database, query_database</td>
+            </tr>
+            <tr>
+              <td>Install</td>
+              <td>npm</td>
+              <td class="status-warn">Claude Desktop only</td>
+              <td class="status-good">PyPI (uvx), .mcpb</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features">
+    <div class="container">
+      <h2 class="section-title">Features</h2>
+      <p class="section-subtitle">Everything you need to work with Notion from any MCP client.</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-icon" aria-hidden="true">24</span>
+          <h3>Complete API coverage</h3>
+          <p>24 tools covering the entire Notion API v2025-09-03 surface: pages, databases, data sources, blocks, users, comments, and search.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon" aria-hidden="true">++</span>
+          <h3>Convenience tools</h3>
+          <p><code>archive_page</code>, <code>archive_database</code>, and <code>query_database</code> with automatic data-source resolution &mdash; reducing multi-step workflows to single calls.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon" aria-hidden="true">{}</span>
+          <h3>LLM-friendly parameters</h3>
+          <p>Accepts both JSON strings and raw objects/arrays. No more crashes when an LLM passes a dict instead of a serialized string.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon" aria-hidden="true">Py</span>
+          <h3>Python-based, runs everywhere</h3>
+          <p>Install with <code>uvx</code>, <code>pip</code>, or download the <code>.mcpb</code> bundle. Works with Claude Desktop, Claude Code, and any MCP client.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Install -->
+  <section id="install">
+    <div class="container">
+      <h2 class="section-title">Install</h2>
+      <p class="section-subtitle">Two ways to get started. Both require a Notion API key.</p>
+      <div class="install-methods">
+        <div class="install-card">
+          <h3>Claude Desktop (.mcpb)</h3>
+          <ol>
+            <li>Download <a href="https://github.com/ldraney/notion-mcp/releases/latest/download/ldraney-notion-mcp.mcpb">ldraney-notion-mcp.mcpb</a></li>
+            <li>Double-click the file to install in Claude Desktop</li>
+            <li>Enter your Notion API key when prompted</li>
+          </ol>
+        </div>
+        <div class="install-card">
+          <h3>Claude Code / CLI</h3>
+          <ol>
+            <li>Run <code>uvx ldraney-notion-mcp</code></li>
+            <li>Or add to your MCP config with <code>NOTION_API_KEY</code> set</li>
+            <li>Works with any MCP-compatible client</li>
+          </ol>
+        </div>
+      </div>
+      <div class="note">
+        <strong>Notion API key required:</strong> Create an internal integration at
+        <a href="https://www.notion.so/my-integrations">notion.so/my-integrations</a>,
+        then share the pages/databases you want to access with that integration.
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-links">
+        <a href="https://github.com/ldraney/notion-mcp">GitHub</a>
+        <a href="https://pypi.org/project/ldraney-notion-mcp/">PyPI</a>
+        <a href="https://github.com/ldraney/notion-sdk">Notion SDK</a>
+        <a href="https://github.com/ldraney/notion-mcp/issues">Issues</a>
+      </div>
+      <p>Built by <a href="https://github.com/ldraney">ldraney</a></p>
+    </div>
+  </footer>
+
+</body>
+</html>

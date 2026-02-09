@@ -11,6 +11,7 @@ jobs:
     permissions:
       id-token: write
       contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout code
@@ -105,3 +106,25 @@ jobs:
           gh release create "v${VERSION}" ldraney-notion-mcp.mcpb \
             --title "v${VERSION}" \
             --generate-notes
+
+      - name: Update landing page version
+        if: steps.pypi_check.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+ \&middot;/v${VERSION} \&middot;/" docs/index.html
+          if git diff --quiet docs/index.html; then
+            echo "::warning::Landing page version pattern not found — docs/index.html was not modified"
+          fi
+
+      - name: Create PR for landing page version
+        if: steps.pypi_check.outputs.exists == 'false'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "Update landing page version to v${{ steps.version.outputs.version }}"
+          branch: auto/landing-page-version
+          delete-branch: true
+          title: "Update landing page version to v${{ steps.version.outputs.version }}"
+          body: |
+            Automated PR to update the version displayed on the GitHub Pages landing page after the v${{ steps.version.outputs.version }} release.
+
+            This PR was created by CI. Review and merge when ready.

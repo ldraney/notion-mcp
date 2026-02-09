@@ -28,7 +28,7 @@ Neither works reliably. This is well-documented in issues like [#142](https://gi
 | Serialization | Double-stringifies nested objects ([#196](https://github.com/makenotion/notion-mcp-server/issues/196)) | N/A | Accepts both JSON strings and raw objects |
 | Property updates | Blocked by `additionalProperties: false` ([#184](https://github.com/makenotion/notion-mcp-server/issues/184)) | Unknown | Works correctly |
 | Database queries | `retrieve-a-database` was missing for 5 weeks | Some tools gated to Enterprise | `query_database` auto-resolves data sources |
-| Tool count | 22 | ~10 | 24 |
+| Tool count | 22 | ~10 | 26 |
 | Convenience tools | None | Limited | `archive_page`, `archive_database`, `query_database` |
 | Install | npm | Claude Desktop only | PyPI (`uvx`), `.mcpb` (planned) |
 
@@ -95,7 +95,7 @@ Every method in `notion-sdk` maps to an MCP tool, organized by module:
 |---|---|---|
 | `search` | `search()` | `POST /v1/search` |
 
-**24 tools total** covering the complete Notion API v2025-09-03 surface.
+**26 tools total** covering the complete Notion API v2025-09-03 surface.
 
 ## Architecture
 

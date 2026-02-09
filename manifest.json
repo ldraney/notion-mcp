@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "ldraney-notion-mcp",
   "display_name": "Notion",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "MCP server for the Notion API v2025-09-03 — read, create, and manage pages, databases, blocks, comments, and users.",
   "author": {
     "name": "ldraney"
@@ -11,8 +11,8 @@
     "type": "uv",
     "entry_point": "src/run_server.py",
     "mcp_config": {
-      "command": "uvx",
-      "args": ["ldraney-notion-mcp"],
+      "command": "uv",
+      "args": ["tool", "run", "ldraney-notion-mcp"],
       "env": {
         "NOTION_API_KEY": "${user_config.notion_api_key}"
       }

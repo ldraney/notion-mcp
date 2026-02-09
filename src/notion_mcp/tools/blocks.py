@@ -54,17 +54,20 @@ def get_block_children(
 def append_block_children(
     block_id: Annotated[str, Field(description="The UUID of the parent block to append children to")],
     children: Annotated[str | list, Field(description="JSON string or array for a list of block objects to append")],
+    position: Annotated[str | dict | None, Field(description='Optional position object to control where blocks are inserted. Valid types: {"type": "end"}, {"type": "start"}, {"type": "after_block", "after_block": {"id": "<block_id>"}}')] = None,
 ) -> str:
     """Append child blocks to a Notion block.
 
     Args:
         block_id: The UUID of the parent block to append children to.
         children: JSON string or array for a list of block objects to append.
+        position: Optional position object to control where blocks are inserted.
     """
     try:
         result = get_client().append_block_children(
             block_id,
             children=_parse_json(children, "children"),
+            position=_parse_json(position, "position"),
         )
         return json.dumps(result, indent=2)
     except Exception as exc:

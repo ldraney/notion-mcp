@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "ldraney-notion-mcp",
   "display_name": "Notion",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "MCP server for the Notion API v2025-09-03 — read, create, and manage pages, databases, blocks, comments, and users.",
   "author": {
     "name": "ldraney"
@@ -30,6 +30,7 @@
   "tools": [
     { "name": "create_page", "description": "Create a new Notion page" },
     { "name": "get_page", "description": "Retrieve a Notion page by ID" },
+    { "name": "get_page_property_item", "description": "Retrieve a page property item (essential for relations, rollups, long rich_text)" },
     { "name": "update_page", "description": "Update a Notion page's properties, icon, or cover" },
     { "name": "archive_page", "description": "Archive (soft-delete) a Notion page" },
     { "name": "move_page", "description": "Move a Notion page to a new parent" },
@@ -48,6 +49,7 @@
     { "name": "update_block", "description": "Update a Notion block" },
     { "name": "delete_block", "description": "Delete (archive) a Notion block" },
     { "name": "get_users", "description": "List all users in the Notion workspace" },
+    { "name": "get_user", "description": "Retrieve a Notion user by ID" },
     { "name": "get_self", "description": "Retrieve the bot user for the current API token" },
     { "name": "create_comment", "description": "Create a comment on a Notion page or block" },
     { "name": "get_comments", "description": "List comments on a Notion page or block" },

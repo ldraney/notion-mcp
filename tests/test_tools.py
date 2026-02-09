@@ -50,12 +50,15 @@ class TestPageTools:
         result = create_page(parent=parent, properties=props)
         parsed = json.loads(result)
         assert parsed["id"] == "page-1"
-        mock_client.create_page.assert_called_once_with(
-            parent={"type": "page_id", "page_id": "abc"},
-            properties={"title": [{"text": {"content": "Test"}}]},
-            children=None,
-            template=None,
-        )
+        call_kwargs = mock_client.create_page.call_args.kwargs
+        assert call_kwargs["parent"] == {"type": "page_id", "page_id": "abc"}
+        assert call_kwargs["properties"] == {"title": [{"text": {"content": "Test"}}]}
+        assert call_kwargs["children"] is None
+        assert call_kwargs["template"] is None
+        # position, icon, cover should NOT be passed when not set
+        assert "position" not in call_kwargs
+        assert "icon" not in call_kwargs
+        assert "cover" not in call_kwargs
 
     def test_create_page_with_children(self, mock_client):
         from notion_mcp.tools.pages import create_page
@@ -84,12 +87,29 @@ class TestPageTools:
         )
         parsed = json.loads(result)
         assert parsed["id"] == "page-3"
-        mock_client.create_page.assert_called_once_with(
-            parent={"type": "page_id", "page_id": "abc"},
-            properties={"title": []},
-            children=None,
-            template={"type": "template_id", "template_id": "tmpl-abc"},
+        call_kwargs = mock_client.create_page.call_args.kwargs
+        assert call_kwargs["parent"] == {"type": "page_id", "page_id": "abc"}
+        assert call_kwargs["properties"] == {"title": []}
+        assert call_kwargs["children"] is None
+        assert call_kwargs["template"] == {"type": "template_id", "template_id": "tmpl-abc"}
+
+    def test_create_page_with_position_icon_cover(self, mock_client):
+        from notion_mcp.tools.pages import create_page
+
+        mock_client.create_page.return_value = {"id": "page-4"}
+        result = create_page(
+            parent='{"type": "page_id", "page_id": "abc"}',
+            properties='{"title": []}',
+            position='{"type": "page_start"}',
+            icon='{"type": "emoji", "emoji": "X"}',
+            cover='{"type": "external", "external": {"url": "https://example.com"}}',
         )
+        parsed = json.loads(result)
+        assert parsed["id"] == "page-4"
+        call_kwargs = mock_client.create_page.call_args.kwargs
+        assert call_kwargs["position"] == {"type": "page_start"}
+        assert call_kwargs["icon"] == {"type": "emoji", "emoji": "X"}
+        assert call_kwargs["cover"] == {"type": "external", "external": {"url": "https://example.com"}}
 
     def test_get_page(self, mock_client):
         from notion_mcp.tools.pages import get_page
@@ -99,6 +119,50 @@ class TestPageTools:
         parsed = json.loads(result)
         assert parsed["id"] == "page-1"
         mock_client.get_page.assert_called_once_with("page-1")
+
+    def test_get_page_with_filter_properties(self, mock_client):
+        from notion_mcp.tools.pages import get_page
+
+        mock_client.get_page.return_value = {"id": "page-1", "object": "page"}
+        result = get_page("page-1", filter_properties='["title", "status"]')
+        parsed = json.loads(result)
+        assert parsed["id"] == "page-1"
+        mock_client.get_page.assert_called_once_with(
+            "page-1", filter_properties=["title", "status"],
+        )
+
+    def test_get_page_property_item(self, mock_client):
+        from notion_mcp.tools.pages import get_page_property_item
+
+        mock_client.get_page_property_item.return_value = {
+            "object": "property_item",
+            "type": "title",
+            "title": {"text": {"content": "Test"}},
+        }
+        result = get_page_property_item("page-1", "prop-abc")
+        parsed = json.loads(result)
+        assert parsed["type"] == "title"
+        mock_client.get_page_property_item.assert_called_once_with(
+            "page-1", "prop-abc", start_cursor=None, page_size=None,
+        )
+
+    def test_get_page_property_item_paginated(self, mock_client):
+        from notion_mcp.tools.pages import get_page_property_item
+
+        mock_client.get_page_property_item.return_value = {
+            "object": "list",
+            "results": [{"id": "r1"}],
+            "has_more": True,
+            "next_cursor": "cursor-abc",
+        }
+        result = get_page_property_item(
+            "page-1", "prop-abc", start_cursor="cursor-prev", page_size=5,
+        )
+        parsed = json.loads(result)
+        assert parsed["has_more"] is True
+        mock_client.get_page_property_item.assert_called_once_with(
+            "page-1", "prop-abc", start_cursor="cursor-prev", page_size=5,
+        )
 
     def test_update_page(self, mock_client):
         from notion_mcp.tools.pages import update_page
@@ -207,6 +271,26 @@ class TestDatabaseTools:
         parsed = json.loads(result)
         assert parsed["archived"] is True
 
+    def test_create_database_with_new_params(self, mock_client):
+        from notion_mcp.tools.databases import create_database
+
+        mock_client.create_database.return_value = {"id": "db-new"}
+        result = create_database(
+            parent='{"type": "page_id", "page_id": "abc"}',
+            title='[{"type": "text", "text": {"content": "My DB"}}]',
+            description='[{"type": "text", "text": {"content": "A description"}}]',
+            is_inline=True,
+            icon='{"type": "emoji", "emoji": "X"}',
+            cover='{"type": "external", "external": {"url": "https://example.com"}}',
+        )
+        parsed = json.loads(result)
+        assert parsed["id"] == "db-new"
+        call_kwargs = mock_client.create_database.call_args.kwargs
+        assert call_kwargs["description"] == [{"type": "text", "text": {"content": "A description"}}]
+        assert call_kwargs["is_inline"] is True
+        assert call_kwargs["icon"] == {"type": "emoji", "emoji": "X"}
+        assert call_kwargs["cover"] == {"type": "external", "external": {"url": "https://example.com"}}
+
     def test_query_database(self, mock_client):
         from notion_mcp.tools.databases import query_database
 
@@ -216,6 +300,29 @@ class TestDatabaseTools:
         assert parsed["has_more"] is False
         mock_client.query_database.assert_called_once_with(
             "db-1", filter=None, sorts=None, start_cursor=None, page_size=10,
+        )
+
+    def test_query_database_with_new_params(self, mock_client):
+        from notion_mcp.tools.databases import query_database
+
+        mock_client.query_database.return_value = {"results": [], "has_more": False}
+        result = query_database(
+            "db-1",
+            filter_properties='["title", "status"]',
+            archived=True,
+            in_trash=False,
+        )
+        parsed = json.loads(result)
+        assert parsed["has_more"] is False
+        mock_client.query_database.assert_called_once_with(
+            "db-1",
+            filter=None,
+            sorts=None,
+            start_cursor=None,
+            page_size=None,
+            filter_properties=["title", "status"],
+            archived=True,
+            in_trash=False,
         )
 
     def test_get_data_source(self, mock_client):
@@ -241,6 +348,31 @@ class TestDatabaseTools:
         result = query_data_source("ds-1")
         parsed = json.loads(result)
         assert "results" in parsed
+
+    def test_query_data_source_with_new_params(self, mock_client):
+        from notion_mcp.tools.databases import query_data_source
+
+        mock_client.query_data_source.return_value = {"results": [], "has_more": False}
+        result = query_data_source(
+            "ds-1",
+            filter_properties='["title"]',
+            archived=True,
+            in_trash=False,
+            result_type="page",
+        )
+        parsed = json.loads(result)
+        assert "results" in parsed
+        mock_client.query_data_source.assert_called_once_with(
+            "ds-1",
+            filter=None,
+            sorts=None,
+            start_cursor=None,
+            page_size=None,
+            filter_properties=["title"],
+            archived=True,
+            in_trash=False,
+            result_type="page",
+        )
 
     def test_list_data_source_templates(self, mock_client):
         from notion_mcp.tools.databases import list_data_source_templates
@@ -284,6 +416,41 @@ class TestBlockTools:
         result = append_block_children("block-1", children=children)
         parsed = json.loads(result)
         assert len(parsed["results"]) == 1
+        mock_client.append_block_children.assert_called_once_with(
+            "block-1",
+            children=[{"object": "block", "type": "paragraph", "paragraph": {"rich_text": []}}],
+            position=None,
+        )
+
+    def test_append_block_children_with_position(self, mock_client):
+        from notion_mcp.tools.blocks import append_block_children
+
+        mock_client.append_block_children.return_value = {"results": [{"id": "new-block"}]}
+        children = json.dumps([{"object": "block", "type": "paragraph", "paragraph": {"rich_text": []}}])
+        position = json.dumps({"type": "start"})
+        result = append_block_children("block-1", children=children, position=position)
+        parsed = json.loads(result)
+        assert len(parsed["results"]) == 1
+        mock_client.append_block_children.assert_called_once_with(
+            "block-1",
+            children=[{"object": "block", "type": "paragraph", "paragraph": {"rich_text": []}}],
+            position={"type": "start"},
+        )
+
+    def test_append_block_children_with_after_block_position(self, mock_client):
+        from notion_mcp.tools.blocks import append_block_children
+
+        mock_client.append_block_children.return_value = {"results": [{"id": "new-block"}]}
+        children = [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": []}}]
+        position = {"type": "after_block", "after_block": {"id": "target-block"}}
+        result = append_block_children("block-1", children=children, position=position)
+        parsed = json.loads(result)
+        assert len(parsed["results"]) == 1
+        mock_client.append_block_children.assert_called_once_with(
+            "block-1",
+            children=children,
+            position=position,
+        )
 
     def test_update_block(self, mock_client):
         from notion_mcp.tools.blocks import update_block
@@ -320,6 +487,16 @@ class TestUserTools:
         result = get_users()
         parsed = json.loads(result)
         assert len(parsed["results"]) == 1
+
+    def test_get_user(self, mock_client):
+        from notion_mcp.tools.users import get_user
+
+        mock_client.get_user.return_value = {"id": "user-1", "type": "person", "name": "Alice"}
+        result = get_user("user-1")
+        parsed = json.loads(result)
+        assert parsed["id"] == "user-1"
+        assert parsed["type"] == "person"
+        mock_client.get_user.assert_called_once_with("user-1")
 
     def test_get_self(self, mock_client):
         from notion_mcp.tools.users import get_self
@@ -522,12 +699,11 @@ class TestRawDictParams:
         )
         parsed = json.loads(result)
         assert parsed["id"] == "page-raw"
-        mock_client.create_page.assert_called_once_with(
-            parent={"type": "page_id", "page_id": "abc"},
-            properties={"title": [{"text": {"content": "Raw"}}]},
-            children=None,
-            template=None,
-        )
+        call_kwargs = mock_client.create_page.call_args.kwargs
+        assert call_kwargs["parent"] == {"type": "page_id", "page_id": "abc"}
+        assert call_kwargs["properties"] == {"title": [{"text": {"content": "Raw"}}]}
+        assert call_kwargs["children"] is None
+        assert call_kwargs["template"] is None
 
     def test_create_page_raw_children_list(self, mock_client):
         from notion_mcp.tools.pages import create_page
@@ -556,12 +732,11 @@ class TestRawDictParams:
         )
         parsed = json.loads(result)
         assert parsed["id"] == "page-tmpl"
-        mock_client.create_page.assert_called_once_with(
-            parent={"type": "page_id", "page_id": "abc"},
-            properties={"title": []},
-            children=None,
-            template=template,
-        )
+        call_kwargs = mock_client.create_page.call_args.kwargs
+        assert call_kwargs["parent"] == {"type": "page_id", "page_id": "abc"}
+        assert call_kwargs["properties"] == {"title": []}
+        assert call_kwargs["children"] is None
+        assert call_kwargs["template"] == template
 
     def test_update_page_raw_dicts(self, mock_client):
         from notion_mcp.tools.pages import update_page
@@ -604,11 +779,15 @@ class TestRawDictParams:
         )
         parsed = json.loads(result)
         assert parsed["id"] == "db-raw"
-        mock_client.create_database.assert_called_once_with(
-            parent={"type": "page_id", "page_id": "abc"},
-            title=[{"type": "text", "text": {"content": "My DB"}}],
-            initial_data_source={"properties": {"Name": {"title": {}}}},
-        )
+        call_kwargs = mock_client.create_database.call_args.kwargs
+        assert call_kwargs["parent"] == {"type": "page_id", "page_id": "abc"}
+        assert call_kwargs["title"] == [{"type": "text", "text": {"content": "My DB"}}]
+        assert call_kwargs["initial_data_source"] == {"properties": {"Name": {"title": {}}}}
+        # Optional params not passed
+        assert "description" not in call_kwargs
+        assert "is_inline" not in call_kwargs
+        assert "icon" not in call_kwargs
+        assert "cover" not in call_kwargs
 
     def test_update_database_raw(self, mock_client):
         from notion_mcp.tools.databases import update_database
@@ -633,13 +812,9 @@ class TestRawDictParams:
         result = query_database("db-1", filter=filter_obj, sorts=sorts_obj)
         parsed = json.loads(result)
         assert parsed["has_more"] is False
-        mock_client.query_database.assert_called_once_with(
-            "db-1",
-            filter=filter_obj,
-            sorts=sorts_obj,
-            start_cursor=None,
-            page_size=None,
-        )
+        call_kwargs = mock_client.query_database.call_args.kwargs
+        assert call_kwargs["filter"] == filter_obj
+        assert call_kwargs["sorts"] == sorts_obj
 
     def test_update_data_source_raw(self, mock_client):
         from notion_mcp.tools.databases import update_data_source
@@ -669,7 +844,7 @@ class TestRawDictParams:
         parsed = json.loads(result)
         assert len(parsed["results"]) == 1
         mock_client.append_block_children.assert_called_once_with(
-            "block-1", children=children,
+            "block-1", children=children, position=None,
         )
 
     def test_update_block_raw(self, mock_client):

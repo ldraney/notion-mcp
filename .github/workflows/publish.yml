@@ -112,6 +112,9 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+ \&middot;/v${VERSION} \&middot;/" docs/index.html
+          if git diff --quiet docs/index.html; then
+            echo "::warning::Landing page version pattern not found — docs/index.html was not modified"
+          fi
 
       - name: Create PR for landing page version
         if: steps.pypi_check.outputs.exists == 'false'

@@ -20,6 +20,10 @@ def create_database(
     parent: Annotated[str | dict, Field(description="JSON string or object for the parent, e.g. {\"type\": \"page_id\", \"page_id\": \"...\"}")],
     title: Annotated[str | list, Field(description="JSON string or array for the title rich-text array, e.g. [{\"type\": \"text\", \"text\": {\"content\": \"My DB\"}}]")],
     initial_data_source: Annotated[str | dict | None, Field(description="JSON string or object for the initial data source configuration including properties")] = None,
+    description: Annotated[str | list | None, Field(description="JSON string or array for the description rich-text array")] = None,
+    is_inline: Annotated[bool | None, Field(description="If true, the database is created inline within the parent page")] = None,
+    icon: Annotated[str | dict | None, Field(description="JSON string or object for the database icon, e.g. {\"type\": \"emoji\", \"emoji\": \"...\"}")] = None,
+    cover: Annotated[str | dict | None, Field(description="JSON string or object for the database cover, e.g. {\"type\": \"external\", \"external\": {\"url\": \"https://...\"}}")] = None,
 ) -> str:
     """Create a new Notion database.
 
@@ -32,13 +36,26 @@ def create_database(
             e.g. [{"type": "text", "text": {"content": "My DB"}}].
         initial_data_source: Optional JSON string or object for the initial data source
             configuration including properties.
+        description: Optional JSON string or array for the description rich-text array.
+        is_inline: If true, the database is created inline within the parent page.
+        icon: Optional JSON string or object for the database icon.
+        cover: Optional JSON string or object for the database cover.
     """
     try:
-        result = get_client().create_database(
+        kwargs: dict[str, Any] = dict(
             parent=_parse_json(parent, "parent"),
             title=_parse_json(title, "title"),
             initial_data_source=_parse_json(initial_data_source, "initial_data_source"),
         )
+        if description is not None:
+            kwargs["description"] = _parse_json(description, "description")
+        if is_inline is not None:
+            kwargs["is_inline"] = is_inline
+        if icon is not None:
+            kwargs["icon"] = _parse_json(icon, "icon")
+        if cover is not None:
+            kwargs["cover"] = _parse_json(cover, "cover")
+        result = get_client().create_database(**kwargs)
         return json.dumps(result, indent=2)
     except Exception as exc:
         return _error_response(exc)
@@ -119,6 +136,9 @@ def query_database(
     sorts: Annotated[str | list | None, Field(description="JSON string or array for a list of sort objects, e.g. [{\"property\": \"Created\", \"direction\": \"descending\"}]")] = None,
     start_cursor: Annotated[str | None, Field(description="Cursor for pagination")] = None,
     page_size: Annotated[int | None, Field(description="Number of results per page")] = None,
+    filter_properties: Annotated[str | list | None, Field(description="Optional list of property IDs to include in results. Pass as a JSON array of strings or a list.")] = None,
+    archived: Annotated[bool | None, Field(description="If true, only return archived pages")] = None,
+    in_trash: Annotated[bool | None, Field(description="If true, only return trashed pages")] = None,
 ) -> str:
     """Query a Notion database for pages/rows.
 
@@ -131,15 +151,24 @@ def query_database(
         sorts: Optional JSON string or array for a list of sort objects.
         start_cursor: Optional cursor for pagination.
         page_size: Optional number of results per page.
+        filter_properties: Optional list of property IDs to include in results.
+        archived: If true, only return archived pages.
+        in_trash: If true, only return trashed pages.
     """
     try:
-        result = get_client().query_database(
-            database_id,
+        kwargs: dict[str, Any] = dict(
             filter=_parse_json(filter, "filter"),
             sorts=_parse_json(sorts, "sorts"),
             start_cursor=start_cursor,
             page_size=page_size,
         )
+        if filter_properties is not None:
+            kwargs["filter_properties"] = _parse_json(filter_properties, "filter_properties")
+        if archived is not None:
+            kwargs["archived"] = archived
+        if in_trash is not None:
+            kwargs["in_trash"] = in_trash
+        result = get_client().query_database(database_id, **kwargs)
         return json.dumps(result, indent=2)
     except Exception as exc:
         return _error_response(exc)
@@ -194,6 +223,10 @@ def query_data_source(
     sorts: Annotated[str | list | None, Field(description="JSON string or array for a list of sort objects, e.g. [{\"property\": \"Created\", \"direction\": \"descending\"}]")] = None,
     start_cursor: Annotated[str | None, Field(description="Cursor for pagination")] = None,
     page_size: Annotated[int | None, Field(description="Number of results per page")] = None,
+    filter_properties: Annotated[str | list | None, Field(description="Optional list of property IDs to include in results. Pass as a JSON array of strings or a list.")] = None,
+    archived: Annotated[bool | None, Field(description="If true, only return archived pages")] = None,
+    in_trash: Annotated[bool | None, Field(description="If true, only return trashed pages")] = None,
+    result_type: Annotated[str | None, Field(description='Optional result type: "page" or "data_source"')] = None,
 ) -> str:
     """Query rows in a Notion data source.
 
@@ -203,15 +236,27 @@ def query_data_source(
         sorts: Optional JSON string or array for a list of sort objects.
         start_cursor: Optional cursor for pagination.
         page_size: Optional number of results per page.
+        filter_properties: Optional list of property IDs to include in results.
+        archived: If true, only return archived pages.
+        in_trash: If true, only return trashed pages.
+        result_type: Optional result type: "page" or "data_source".
     """
     try:
-        result = get_client().query_data_source(
-            data_source_id,
+        kwargs: dict[str, Any] = dict(
             filter=_parse_json(filter, "filter"),
             sorts=_parse_json(sorts, "sorts"),
             start_cursor=start_cursor,
             page_size=page_size,
         )
+        if filter_properties is not None:
+            kwargs["filter_properties"] = _parse_json(filter_properties, "filter_properties")
+        if archived is not None:
+            kwargs["archived"] = archived
+        if in_trash is not None:
+            kwargs["in_trash"] = in_trash
+        if result_type is not None:
+            kwargs["result_type"] = result_type
+        result = get_client().query_data_source(data_source_id, **kwargs)
         return json.dumps(result, indent=2)
     except Exception as exc:
         return _error_response(exc)

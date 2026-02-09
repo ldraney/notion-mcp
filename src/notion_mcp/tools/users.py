@@ -32,6 +32,22 @@ def get_users(
 
 
 @mcp.tool()
+def get_user(
+    user_id: Annotated[str, Field(description="The UUID of the user to retrieve")],
+) -> str:
+    """Retrieve a Notion user by their ID.
+
+    Args:
+        user_id: The UUID of the user to retrieve.
+    """
+    try:
+        result = get_client().get_user(user_id)
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return _error_response(exc)
+
+
+@mcp.tool()
 def get_self() -> str:
     """Retrieve the bot user associated with the current API token."""
     try:

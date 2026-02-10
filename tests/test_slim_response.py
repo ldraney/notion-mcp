@@ -88,6 +88,93 @@ class TestPageBlockMetadata:
         assert "created_time" in result
 
 
+
+class TestPageWithoutTypeKey:
+    """Pages from Notion API v2025-09-03 may not have a top-level 'type' key.
+    The heuristic should still match them via 'id' + 'properties'."""
+
+    def test_page_without_type_key_stripped(self):
+        page = {
+            "id": "page-1",
+            "properties": {
+                "Name": {"id": "title", "type": "title", "title": [{"type": "text", "text": {"content": "Test"}}]}
+            },
+            "parent": {"type": "database_id", "database_id": "db-1"},
+            "created_by": {"object": "user", "id": "u1"},
+            "last_edited_by": {"object": "user", "id": "u1"},
+            "created_time": "2024-01-01T00:00:00.000Z",
+            "last_edited_time": "2024-01-02T00:00:00.000Z",
+            "archived": False,
+            "in_trash": False,
+            "is_locked": False,
+            "url": "https://notion.so/page-1",
+        }
+        result = _slim_response(page)
+        assert "parent" not in result
+        assert "created_by" not in result
+        assert "last_edited_by" not in result
+        assert "created_time" not in result
+        assert "last_edited_time" not in result
+        assert "archived" not in result
+        assert "in_trash" not in result
+        assert "is_locked" not in result
+        assert result["id"] == "page-1"
+        assert "properties" in result
+        assert result["url"] == "https://notion.so/page-1"
+
+    def test_page_without_type_in_query_results(self):
+        query_result = {
+            "results": [
+                {
+                    "id": "page-1",
+                    "properties": {"Status": {"id": "s1", "type": "select", "select": {"id": "opt-1", "name": "Active", "color": "green"}}},
+                    "parent": {"type": "database_id", "database_id": "db-1"},
+                    "created_by": {"object": "user", "id": "u1"},
+                    "last_edited_by": {"object": "user", "id": "u1"},
+                    "created_time": "2024-01-01T00:00:00.000Z",
+                    "last_edited_time": "2024-01-01T00:00:00.000Z",
+                    "archived": False,
+                    "in_trash": False,
+                    "url": "https://notion.so/page-1",
+                }
+            ],
+            "has_more": False,
+        }
+        result = _slim_response(query_result)
+        page = result["results"][0]
+        assert "parent" not in page
+        assert "created_by" not in page
+        assert "created_time" not in page
+        assert "archived" not in page
+        assert page["id"] == "page-1"
+        assert page["properties"]["Status"]["select"] == {"name": "Active", "color": "green"}
+
+
+class TestDataSourceMetadata:
+    """Data source objects (from get_data_source) have id + properties but no type,
+    so the id+(type|properties) heuristic matches them. Their metadata should be stripped
+    the same way as pages."""
+
+    def test_data_source_metadata_stripped(self):
+        ds = {
+            "id": "ds-1",
+            "properties": {"Name": {"id": "title", "type": "title", "title": {}}},
+            "parent": {"type": "database_id", "database_id": "db-1"},
+            "created_by": {"object": "user", "id": "u1"},
+            "last_edited_by": {"object": "user", "id": "u1"},
+            "created_time": "2024-01-01T00:00:00.000Z",
+            "last_edited_time": "2024-01-02T00:00:00.000Z",
+        }
+        result = _slim_response(ds)
+        assert "parent" not in result
+        assert "created_by" not in result
+        assert "last_edited_by" not in result
+        assert "created_time" not in result
+        assert "last_edited_time" not in result
+        assert result["id"] == "ds-1"
+        assert "properties" in result
+
+
 class TestRichText:
     def test_default_annotations_stripped_entirely(self):
         item = {
@@ -417,7 +504,7 @@ class TestCommentAndUserObjects:
             ],
         }
         result = _slim_response(data)
-        # No type key means the id+type heuristic doesn't trigger
+        # No type or properties key means the id+(type|properties) heuristic doesn't trigger
         assert "parent" in result
         assert "created_by" in result
         assert "created_time" in result

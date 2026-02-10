@@ -735,6 +735,13 @@ class TestDataSourceFiltering:
         assert _is_data_source_masquerading_as_database(42) is False
         assert _is_data_source_masquerading_as_database(None) is False
 
+    def test_is_data_source_false_for_empty_data_sources(self):
+        """A database with data_sources: [] is a real database, not a data source."""
+        from notion_mcp.tools.search import _is_data_source_masquerading_as_database
+
+        item = {"object": "database", "id": "db-1", "data_sources": []}
+        assert _is_data_source_masquerading_as_database(item) is False
+
     def test_filter_no_results_key(self):
         from notion_mcp.tools.search import _filter_data_source_objects
 

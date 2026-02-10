@@ -108,16 +108,19 @@ jobs:
             --generate-notes
 
       - name: Update landing page version
-        if: steps.pypi_check.outputs.exists == 'false'
+        id: landing_page
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+ \&middot;/v${VERSION} \&middot;/" docs/index.html
           if git diff --quiet docs/index.html; then
-            echo "::warning::Landing page version pattern not found — docs/index.html was not modified"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Landing page already at v${VERSION} — no PR needed."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create PR for landing page version
-        if: steps.pypi_check.outputs.exists == 'false'
+        if: steps.landing_page.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           commit-message: "Update landing page version to v${{ steps.version.outputs.version }}"

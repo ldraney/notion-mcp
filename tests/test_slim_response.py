@@ -150,6 +150,31 @@ class TestPageWithoutTypeKey:
         assert page["properties"]["Status"]["select"] == {"name": "Active", "color": "green"}
 
 
+class TestDataSourceMetadata:
+    """Data source objects (from get_data_source) have id + properties but no type,
+    so the id+(type|properties) heuristic matches them. Their metadata should be stripped
+    the same way as pages."""
+
+    def test_data_source_metadata_stripped(self):
+        ds = {
+            "id": "ds-1",
+            "properties": {"Name": {"id": "title", "type": "title", "title": {}}},
+            "parent": {"type": "database_id", "database_id": "db-1"},
+            "created_by": {"object": "user", "id": "u1"},
+            "last_edited_by": {"object": "user", "id": "u1"},
+            "created_time": "2024-01-01T00:00:00.000Z",
+            "last_edited_time": "2024-01-02T00:00:00.000Z",
+        }
+        result = _slim_response(ds)
+        assert "parent" not in result
+        assert "created_by" not in result
+        assert "last_edited_by" not in result
+        assert "created_time" not in result
+        assert "last_edited_time" not in result
+        assert result["id"] == "ds-1"
+        assert "properties" in result
+
+
 class TestRichText:
     def test_default_annotations_stripped_entirely(self):
         item = {

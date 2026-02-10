@@ -479,13 +479,15 @@ class TestBlockContent:
 
 
 class TestCommentAndUserObjects:
-    def test_comment_object_preserves_parent_and_created_by(self):
-        """Comment objects have id but no type, so page/block metadata stripping should NOT apply."""
+    def test_comment_object_metadata_stripped(self):
+        """Comment objects (id + discussion_id) have metadata stripped."""
         data = {
             "id": "comment-1",
+            "discussion_id": "disc-1",
             "parent": {"page_id": "page-abc"},
             "created_by": {"object": "user", "id": "user-1"},
             "created_time": "2024-06-15T10:00:00.000Z",
+            "last_edited_time": "2024-06-15T10:00:00.000Z",
             "rich_text": [
                 {
                     "type": "text",
@@ -504,10 +506,14 @@ class TestCommentAndUserObjects:
             ],
         }
         result = _slim_response(data)
-        # No type or properties key means the id+(type|properties) heuristic doesn't trigger
-        assert "parent" in result
-        assert "created_by" in result
-        assert "created_time" in result
+        # Comment metadata stripped via id+discussion_id heuristic
+        assert "parent" not in result
+        assert "created_by" not in result
+        assert "created_time" not in result
+        assert "last_edited_time" not in result
+        # Core fields preserved
+        assert result["id"] == "comment-1"
+        assert result["discussion_id"] == "disc-1"
         # Rich text still gets slimmed
         rt = result["rich_text"][0]
         assert "annotations" not in rt
@@ -773,3 +779,128 @@ class TestPropertyValueCollision:
         assert "created_by" not in result
         assert "created_time" not in result
         assert result["type"] == "paragraph"
+
+
+class TestDatabaseMetadata:
+    """Database objects have id + data_sources but no type or properties.
+    The extended heuristic should strip metadata from them."""
+
+    def test_database_metadata_stripped(self):
+        db = {
+            "id": "db-1",
+            "title": [{"type": "text", "text": {"content": "My Database"}}],
+            "data_sources": [{"id": "ds-1", "type": "default"}],
+            "parent": {"type": "workspace", "workspace": True},
+            "created_by": {"object": "user", "id": "user-1"},
+            "last_edited_by": {"object": "user", "id": "user-1"},
+            "created_time": "2024-01-01T00:00:00.000Z",
+            "last_edited_time": "2024-01-02T00:00:00.000Z",
+            "archived": False,
+            "in_trash": False,
+            "is_locked": False,
+            "url": "https://notion.so/db-1",
+        }
+        result = _slim_response(db)
+        # Metadata stripped
+        assert "parent" not in result
+        assert "created_by" not in result
+        assert "last_edited_by" not in result
+        assert "created_time" not in result
+        assert "last_edited_time" not in result
+        assert "archived" not in result
+        assert "in_trash" not in result
+        assert "is_locked" not in result
+        # Core fields preserved
+        assert result["id"] == "db-1"
+        assert "title" in result
+        assert "data_sources" in result
+        assert result["url"] == "https://notion.so/db-1"
+
+    def test_database_archived_true_preserved(self):
+        db = {
+            "id": "db-1",
+            "data_sources": [{"id": "ds-1"}],
+            "archived": True,
+        }
+        result = _slim_response(db)
+        assert result["archived"] is True
+
+
+class TestCommentMetadata:
+    """Comment objects have id + discussion_id but no type or properties.
+    The extended heuristic should strip metadata from them."""
+
+    def test_comment_metadata_stripped(self):
+        comment = {
+            "id": "comment-1",
+            "discussion_id": "disc-1",
+            "parent": {"page_id": "page-abc"},
+            "created_by": {"object": "user", "id": "user-1"},
+            "created_time": "2024-06-15T10:00:00.000Z",
+            "last_edited_time": "2024-06-15T10:05:00.000Z",
+            "rich_text": [
+                {
+                    "type": "text",
+                    "text": {"content": "Great work!"},
+                }
+            ],
+        }
+        result = _slim_response(comment)
+        # Metadata stripped
+        assert "parent" not in result
+        assert "created_by" not in result
+        assert "created_time" not in result
+        assert "last_edited_time" not in result
+        # Core fields preserved
+        assert result["id"] == "comment-1"
+        assert result["discussion_id"] == "disc-1"
+        assert len(result["rich_text"]) == 1
+        assert result["rich_text"][0]["text"] == {"content": "Great work!"}
+
+
+class TestSelectOptionIdStripping:
+    """Property definitions have options arrays with id fields that should be stripped."""
+
+    def test_select_options_id_stripped(self):
+        prop_def = {
+            "id": "prop-1",
+            "type": "select",
+            "select": {
+                "options": [
+                    {"id": "opt-1", "name": "Done", "color": "green"},
+                    {"id": "opt-2", "name": "In Progress", "color": "yellow"},
+                    {"id": "opt-3", "name": "Not Started", "color": "red"},
+                ]
+            },
+        }
+        result = _slim_response(prop_def)
+        options = result["select"]["options"]
+        assert len(options) == 3
+        for opt in options:
+            assert "id" not in opt
+            assert "name" in opt
+            assert "color" in opt
+        assert options[0] == {"name": "Done", "color": "green"}
+        assert options[1] == {"name": "In Progress", "color": "yellow"}
+        assert options[2] == {"name": "Not Started", "color": "red"}
+
+    def test_multi_select_options_id_stripped(self):
+        prop_def = {
+            "id": "prop-2",
+            "type": "multi_select",
+            "multi_select": {
+                "options": [
+                    {"id": "opt-a", "name": "Bug", "color": "red"},
+                    {"id": "opt-b", "name": "Feature", "color": "blue"},
+                ]
+            },
+        }
+        result = _slim_response(prop_def)
+        options = result["multi_select"]["options"]
+        assert len(options) == 2
+        for opt in options:
+            assert "id" not in opt
+            assert "name" in opt
+            assert "color" in opt
+        assert options[0] == {"name": "Bug", "color": "red"}
+        assert options[1] == {"name": "Feature", "color": "blue"}

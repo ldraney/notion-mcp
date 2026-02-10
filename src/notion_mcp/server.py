@@ -136,6 +136,11 @@ def _slim_response(data: Any) -> Any:
             result[key] = [_slim_response(_strip_select_id(item)) if isinstance(item, dict) else item for item in value]
             continue
 
+        # --- Handle options arrays in select/multi_select property definitions ---
+        if key == "options" and isinstance(value, list):
+            result[key] = [_slim_response(_strip_select_id(item)) if isinstance(item, dict) and "name" in item else _slim_response(item) for item in value]
+            continue
+
         # --- Recurse into nested structures ---
         value = _slim_response(value)
 
@@ -148,8 +153,14 @@ def _slim_response(data: Any) -> Any:
 
         result[key] = value
 
-    # --- Strip page/block metadata (dicts with "id" + "type" or "properties") ---
-    if "id" in result and ("type" in result or "properties" in result):
+    # --- Strip page/block/database/comment metadata ---
+    # Match dicts with "id" + one of: "type", "properties", "data_sources", "discussion_id"
+    if "id" in result and (
+        "type" in result
+        or "properties" in result
+        or "data_sources" in result
+        or "discussion_id" in result
+    ):
         type_val = result.get("type")
         for mk in _PAGE_BLOCK_STRIP_KEYS:
             if mk != type_val:

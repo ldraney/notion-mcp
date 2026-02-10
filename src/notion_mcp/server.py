@@ -69,7 +69,7 @@ def _error_response(exc: Exception) -> str:
 # Response slimming — strip Notion API metadata noise to reduce token usage
 # ---------------------------------------------------------------------------
 
-# Keys stripped from ALL objects unconditionally
+# "object" is always inferrable from context (pages have properties, blocks have type-specific content, etc.)
 _ALWAYS_STRIP_KEYS = {"object", "request_id"}
 
 # Keys stripped from page/block objects (dicts that have both "id" and "type")
@@ -86,7 +86,7 @@ _DEFAULT_ANNOTATIONS = {
 }
 
 # Keys whose list values contain rich_text items
-_RICH_TEXT_ARRAY_KEYS = {"rich_text", "title", "caption"}
+_RICH_TEXT_ARRAY_KEYS = {"rich_text", "title", "caption", "description"}
 
 
 def _slim_response(data: Any) -> Any:
@@ -116,13 +116,18 @@ def _slim_response(data: Any) -> Any:
         if key in ("block", "page_or_data_source") and isinstance(value, dict) and not value:
             continue
 
-        # --- Handle rich_text / title / caption arrays ---
+        # --- Handle rich_text / title / caption / description arrays ---
         if key in _RICH_TEXT_ARRAY_KEYS and isinstance(value, list):
             result[key] = [_slim_rich_text_item(item) for item in value]
             continue
 
         # --- Handle select values (strip id, keep name + color) ---
         if key == "select" and isinstance(value, dict) and "name" in value:
+            result[key] = _slim_response(_strip_select_id(value))
+            continue
+
+        # --- Handle status values (same structure as select) ---
+        if key == "status" and isinstance(value, dict) and "name" in value:
             result[key] = _slim_response(_strip_select_id(value))
             continue
 
@@ -135,6 +140,7 @@ def _slim_response(data: Any) -> Any:
         value = _slim_response(value)
 
         # --- Strip block content defaults ---
+        # color: "default" in block content is noise. Annotation colors are handled separately in _slim_rich_text_item.
         if key == "color" and value == "default":
             continue
         if key == "is_toggleable" and value is False:
@@ -162,7 +168,13 @@ def _slim_response(data: Any) -> Any:
 
 
 def _slim_rich_text_item(item: Any) -> Any:
-    """Slim a single rich_text item dict."""
+    """Slim a single rich_text item dict.
+
+    For type: "text" items, plain_text and href are stripped because they're
+    redundant with text.content and text.link respectively. For type: "mention"
+    and "equation" items, plain_text and href are preserved because they contain
+    the only human-readable representation of the content.
+    """
     if not isinstance(item, dict):
         return _slim_response(item)
 
@@ -172,11 +184,11 @@ def _slim_rich_text_item(item: Any) -> Any:
         # Skip null values
         if value is None:
             continue
-        # Skip plain_text (redundant with text.content)
-        if key == "plain_text":
+        # Only strip plain_text for text-type items (where text.content is equivalent)
+        if key == "plain_text" and item.get("type") == "text":
             continue
-        # Skip href (already covered by null stripping above, but explicit)
-        if key == "href":
+        # Only strip href for text-type items (where text.link covers it)
+        if key == "href" and item.get("type") == "text":
             continue
         # Handle annotations
         if key == "annotations" and isinstance(value, dict):
@@ -199,7 +211,7 @@ def _slim_rich_text_item(item: Any) -> Any:
 
 
 def _strip_select_id(value: dict) -> dict:
-    """Strip 'id' from a select/multi_select option dict."""
+    """Strip 'id' from a select/multi_select/status option dict."""
     return {k: v for k, v in value.items() if k != "id"}
 
 

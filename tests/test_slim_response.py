@@ -175,6 +175,105 @@ class TestRichText:
         result = _slim_response({"rich_text": [item]})
         assert result["rich_text"][0]["text"]["link"] == {"url": "https://example.com"}
 
+    def test_mention_user_plain_text_kept(self):
+        """plain_text is the only human-readable content for mention items."""
+        item = {
+            "type": "mention",
+            "mention": {"type": "user", "user": {"id": "user-123"}},
+            "plain_text": "@John Doe",
+            "href": None,
+            "annotations": {
+                "bold": False,
+                "italic": False,
+                "strikethrough": False,
+                "underline": False,
+                "code": False,
+                "color": "default",
+            },
+        }
+        result = _slim_response({"rich_text": [item]})
+        rt = result["rich_text"][0]
+        # annotations stripped (all defaults), href stripped (null), plain_text KEPT
+        assert "annotations" not in rt
+        assert "href" not in rt
+        assert rt["plain_text"] == "@John Doe"
+        assert rt["type"] == "mention"
+
+    def test_mention_page_plain_text_and_href_kept(self):
+        """For page mentions, both plain_text and href are preserved."""
+        item = {
+            "type": "mention",
+            "mention": {"type": "page", "page": {"id": "page-456"}},
+            "plain_text": "My Page",
+            "href": "https://notion.so/page-456",
+            "annotations": {
+                "bold": False,
+                "italic": False,
+                "strikethrough": False,
+                "underline": False,
+                "code": False,
+                "color": "default",
+            },
+        }
+        result = _slim_response({"rich_text": [item]})
+        rt = result["rich_text"][0]
+        # annotations stripped (all defaults), plain_text KEPT, href KEPT
+        assert "annotations" not in rt
+        assert rt["plain_text"] == "My Page"
+        assert rt["href"] == "https://notion.so/page-456"
+
+    def test_equation_plain_text_kept(self):
+        """For equation items, plain_text is the rendered representation."""
+        item = {
+            "type": "equation",
+            "equation": {"expression": "E = mc^2"},
+            "plain_text": "E = mc^2",
+            "href": None,
+            "annotations": {
+                "bold": False,
+                "italic": False,
+                "strikethrough": False,
+                "underline": False,
+                "code": False,
+                "color": "default",
+            },
+        }
+        result = _slim_response({"rich_text": [item]})
+        rt = result["rich_text"][0]
+        # annotations stripped (all defaults), href stripped (null), plain_text KEPT
+        assert "annotations" not in rt
+        assert "href" not in rt
+        assert rt["plain_text"] == "E = mc^2"
+        assert rt["equation"] == {"expression": "E = mc^2"}
+
+    def test_caption_array_slimmed(self):
+        """Caption arrays get the same rich_text slimming treatment."""
+        data = {
+            "caption": [
+                {
+                    "type": "text",
+                    "text": {"content": "An image", "link": None},
+                    "annotations": {
+                        "bold": False,
+                        "italic": False,
+                        "strikethrough": False,
+                        "underline": False,
+                        "code": False,
+                        "color": "default",
+                    },
+                    "plain_text": "An image",
+                    "href": None,
+                }
+            ]
+        }
+        result = _slim_response(data)
+        rt = result["caption"][0]
+        assert "annotations" not in rt
+        assert "plain_text" not in rt  # type: text, so plain_text stripped
+        assert "href" not in rt  # null stripped
+        assert "link" not in rt["text"]  # null stripped
+        assert rt["text"] == {"content": "An image"}
+
 
 class TestSelectMultiSelect:
     def test_select_id_stripped(self):
@@ -202,6 +301,15 @@ class TestSelectMultiSelect:
         result = _slim_response(data)
         assert result["select"]["name"] == "Active"
         assert "id" not in result["select"]
+
+    def test_status_id_stripped(self):
+        """Status properties use the same {id, name, color} structure as select."""
+        data = {
+            "status": {"id": "status-1", "name": "In Progress", "color": "yellow"},
+        }
+        result = _slim_response(data)
+        assert result["status"] == {"name": "In Progress", "color": "yellow"}
+        assert "id" not in result["status"]
 
 
 class TestListResponses:
@@ -281,6 +389,59 @@ class TestBlockContent:
         }
         result = _slim_response(data)
         assert result["heading_1"]["is_toggleable"] is True
+
+
+class TestCommentAndUserObjects:
+    def test_comment_object_preserves_parent_and_created_by(self):
+        """Comment objects have id but no type, so page/block metadata stripping should NOT apply."""
+        data = {
+            "id": "comment-1",
+            "parent": {"page_id": "page-abc"},
+            "created_by": {"object": "user", "id": "user-1"},
+            "created_time": "2024-06-15T10:00:00.000Z",
+            "rich_text": [
+                {
+                    "type": "text",
+                    "text": {"content": "A comment", "link": None},
+                    "annotations": {
+                        "bold": False,
+                        "italic": False,
+                        "strikethrough": False,
+                        "underline": False,
+                        "code": False,
+                        "color": "default",
+                    },
+                    "plain_text": "A comment",
+                    "href": None,
+                }
+            ],
+        }
+        result = _slim_response(data)
+        # No type key means the id+type heuristic doesn't trigger
+        assert "parent" in result
+        assert "created_by" in result
+        assert "created_time" in result
+        # Rich text still gets slimmed
+        rt = result["rich_text"][0]
+        assert "annotations" not in rt
+        assert "plain_text" not in rt  # type: text
+
+    def test_user_object_preserves_type_and_person(self):
+        """User objects have type, so id+type heuristic triggers, but name and person are preserved."""
+        data = {
+            "object": "user",
+            "id": "user-1",
+            "type": "person",
+            "name": "John",
+            "person": {"email": "john@example.com"},
+        }
+        result = _slim_response(data)
+        # "object" is always stripped
+        assert "object" not in result
+        # id+type present so page/block metadata stripping applies, but user doesn't have those keys
+        assert result["type"] == "person"
+        assert result["name"] == "John"
+        assert result["person"] == {"email": "john@example.com"}
 
 
 class TestEdgeCases:

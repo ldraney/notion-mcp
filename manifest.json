@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "ldraney-notion-mcp",
   "display_name": "Notion",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "MCP server for the Notion API v2025-09-03 — read, create, and manage pages, databases, blocks, comments, and users.",
   "author": {
     "name": "ldraney"

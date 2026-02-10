@@ -7,7 +7,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from ..server import mcp, get_client, _parse_json, _error_response
+from ..server import mcp, get_client, _parse_json, _error_response, _slim_response
 
 
 @mcp.tool()
@@ -35,7 +35,7 @@ def create_comment(
             rich_text=_parse_json(rich_text, "rich_text"),
             **kwargs,
         )
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -59,6 +59,6 @@ def get_comments(
             start_cursor=start_cursor,
             page_size=page_size,
         )
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)

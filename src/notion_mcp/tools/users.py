@@ -7,7 +7,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from ..server import mcp, get_client, _error_response
+from ..server import mcp, get_client, _error_response, _slim_response
 
 
 @mcp.tool()
@@ -26,7 +26,7 @@ def get_users(
             start_cursor=start_cursor,
             page_size=page_size,
         )
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -42,7 +42,7 @@ def get_user(
     """
     try:
         result = get_client().get_user(user_id)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -52,6 +52,6 @@ def get_self() -> str:
     """Retrieve the bot user associated with the current API token."""
     try:
         result = get_client().get_self()
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)

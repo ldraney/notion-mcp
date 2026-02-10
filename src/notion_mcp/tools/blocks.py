@@ -7,7 +7,7 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
-from ..server import mcp, get_client, _parse_json, _error_response
+from ..server import mcp, get_client, _parse_json, _error_response, _slim_response
 
 
 @mcp.tool()
@@ -21,7 +21,7 @@ def get_block(
     """
     try:
         result = get_client().get_block(block_id)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -45,7 +45,7 @@ def get_block_children(
             start_cursor=start_cursor,
             page_size=page_size,
         )
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -69,7 +69,7 @@ def append_block_children(
             children=_parse_json(children, "children"),
             position=_parse_json(position, "position"),
         )
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -91,7 +91,7 @@ def update_block(
         if content is not None:
             kwargs = _parse_json(content, "content")
         result = get_client().update_block(block_id, **kwargs)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -107,6 +107,6 @@ def delete_block(
     """
     try:
         result = get_client().delete_block(block_id)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)

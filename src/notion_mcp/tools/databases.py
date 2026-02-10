@@ -7,7 +7,7 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
-from ..server import mcp, get_client, _parse_json, _error_response
+from ..server import mcp, get_client, _parse_json, _error_response, _slim_response
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ def create_database(
         if cover is not None:
             kwargs["cover"] = _parse_json(cover, "cover")
         result = get_client().create_database(**kwargs)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -75,7 +75,7 @@ def get_database(
     """
     try:
         result = get_client().get_database(database_id)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -108,7 +108,7 @@ def update_database(
         if cover is not None:
             kwargs["cover"] = _parse_json(cover, "cover")
         result = get_client().update_database(database_id, **kwargs)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -124,7 +124,7 @@ def archive_database(
     """
     try:
         result = get_client().archive_database(database_id)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -169,7 +169,7 @@ def query_database(
         if in_trash is not None:
             kwargs["in_trash"] = in_trash
         result = get_client().query_database(database_id, **kwargs)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -190,7 +190,7 @@ def get_data_source(
     """
     try:
         result = get_client().get_data_source(data_source_id)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -211,7 +211,7 @@ def update_data_source(
         if properties is not None:
             kwargs["properties"] = _parse_json(properties, "properties")
         result = get_client().update_data_source(data_source_id, **kwargs)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -257,7 +257,7 @@ def query_data_source(
         if result_type is not None:
             kwargs["result_type"] = result_type
         result = get_client().query_data_source(data_source_id, **kwargs)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -284,6 +284,6 @@ def list_data_source_templates(
             start_cursor=start_cursor,
             page_size=page_size,
         )
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)

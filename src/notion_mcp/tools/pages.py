@@ -7,7 +7,7 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
-from ..server import mcp, get_client, _parse_json, _error_response
+from ..server import mcp, get_client, _parse_json, _error_response, _slim_response
 
 
 @mcp.tool()
@@ -48,7 +48,7 @@ def create_page(
         if cover is not None:
             kwargs["cover"] = _parse_json(cover, "cover")
         result = get_client().create_page(**kwargs)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -69,7 +69,7 @@ def get_page(
         if filter_properties is not None:
             kwargs["filter_properties"] = _parse_json(filter_properties, "filter_properties")
         result = get_client().get_page(page_id, **kwargs)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -96,7 +96,7 @@ def get_page_property_item(
             start_cursor=start_cursor,
             page_size=page_size,
         )
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -132,7 +132,7 @@ def update_page(
             erase_content=erase_content,
             **kwargs,
         )
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -148,7 +148,7 @@ def archive_page(
     """
     try:
         result = get_client().archive_page(page_id)
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
 
@@ -170,6 +170,6 @@ def move_page(
             page_id,
             parent=_parse_json(parent, "parent"),
         )
-        return json.dumps(result, indent=2)
+        return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)

@@ -595,6 +595,189 @@ class TestSearchTool:
             page_size=5,
         )
 
+    def test_search_filters_out_data_source_objects(self, mock_client):
+        """Data source objects masquerading as databases should be filtered out.
+
+        The Notion v2025-09-03 search endpoint returns data sources as separate
+        objects with object="database" but without a "data_sources" key.
+        These cause 404 errors when used with query_database/get_database.
+        """
+        from notion_mcp.tools.search import search
+
+        # A real database has object="database" AND data_sources
+        real_database = {
+            "object": "database",
+            "id": "db-real-123",
+            "title": [{"type": "text", "text": {"content": "Real DB"}}],
+            "data_sources": [{"id": "ds-abc", "type": "default"}],
+            "parent": {"type": "workspace", "workspace": True},
+            "created_time": "2024-01-01T00:00:00.000Z",
+            "last_edited_time": "2024-01-02T00:00:00.000Z",
+        }
+        # A data source masquerading as a database has object="database" but NO data_sources
+        fake_database = {
+            "object": "database",
+            "id": "ds-fake-456",
+            "title": [{"type": "text", "text": {"content": "Fake DB (data source)"}}],
+            "properties": {
+                "Name": {"id": "title", "type": "title", "title": {}},
+                "Status": {"id": "s1", "type": "select", "select": {"options": []}},
+            },
+            "parent": {"type": "page_id", "page_id": "page-parent"},
+            "created_time": "2024-01-01T00:00:00.000Z",
+            "last_edited_time": "2024-01-02T00:00:00.000Z",
+        }
+        # A page should never be filtered
+        page = {
+            "object": "page",
+            "id": "page-789",
+            "properties": {"Name": {"id": "title", "type": "title", "title": []}},
+            "parent": {"type": "database_id", "database_id": "db-real-123"},
+            "created_time": "2024-01-01T00:00:00.000Z",
+            "last_edited_time": "2024-01-02T00:00:00.000Z",
+        }
+
+        mock_client.search.return_value = {
+            "object": "list",
+            "results": [real_database, fake_database, page],
+            "has_more": False,
+            "next_cursor": None,
+        }
+
+        result = search(query="test")
+        parsed = json.loads(result)
+
+        # Should have 2 results: the real database and the page (fake filtered out)
+        assert len(parsed["results"]) == 2
+        result_ids = [r["id"] for r in parsed["results"]]
+        assert "db-real-123" in result_ids
+        assert "page-789" in result_ids
+        assert "ds-fake-456" not in result_ids
+
+    def test_search_keeps_all_pages(self, mock_client):
+        """Pages should never be filtered, even if they lack data_sources."""
+        from notion_mcp.tools.search import search
+
+        page1 = {
+            "object": "page",
+            "id": "page-1",
+            "properties": {},
+            "parent": {"type": "workspace"},
+        }
+        page2 = {
+            "object": "page",
+            "id": "page-2",
+            "properties": {},
+            "parent": {"type": "workspace"},
+        }
+        mock_client.search.return_value = {
+            "object": "list",
+            "results": [page1, page2],
+            "has_more": False,
+        }
+
+        result = search(query="test")
+        parsed = json.loads(result)
+        assert len(parsed["results"]) == 2
+
+    def test_search_keeps_real_databases(self, mock_client):
+        """Real databases (with data_sources) should be kept."""
+        from notion_mcp.tools.search import search
+
+        real_db = {
+            "object": "database",
+            "id": "db-1",
+            "title": [{"type": "text", "text": {"content": "DB"}}],
+            "data_sources": [{"id": "ds-1", "type": "default"}],
+        }
+        mock_client.search.return_value = {
+            "object": "list",
+            "results": [real_db],
+            "has_more": False,
+        }
+
+        result = search(query="test")
+        parsed = json.loads(result)
+        assert len(parsed["results"]) == 1
+        assert parsed["results"][0]["id"] == "db-1"
+
+
+# ---------------------------------------------------------------------------
+# Data source filtering helpers (unit tests)
+# ---------------------------------------------------------------------------
+
+
+class TestDataSourceFiltering:
+    """Unit tests for _filter_data_source_objects and _is_data_source_masquerading_as_database."""
+
+    def test_is_data_source_masquerading_true(self):
+        from notion_mcp.tools.search import _is_data_source_masquerading_as_database
+
+        item = {"object": "database", "id": "ds-1", "properties": {}}
+        assert _is_data_source_masquerading_as_database(item) is True
+
+    def test_is_data_source_masquerading_false_for_real_db(self):
+        from notion_mcp.tools.search import _is_data_source_masquerading_as_database
+
+        item = {"object": "database", "id": "db-1", "data_sources": [{"id": "ds-1"}]}
+        assert _is_data_source_masquerading_as_database(item) is False
+
+    def test_is_data_source_masquerading_false_for_page(self):
+        from notion_mcp.tools.search import _is_data_source_masquerading_as_database
+
+        item = {"object": "page", "id": "page-1", "properties": {}}
+        assert _is_data_source_masquerading_as_database(item) is False
+
+    def test_is_data_source_masquerading_false_for_non_dict(self):
+        from notion_mcp.tools.search import _is_data_source_masquerading_as_database
+
+        assert _is_data_source_masquerading_as_database("not a dict") is False
+        assert _is_data_source_masquerading_as_database(42) is False
+        assert _is_data_source_masquerading_as_database(None) is False
+
+    def test_filter_no_results_key(self):
+        from notion_mcp.tools.search import _filter_data_source_objects
+
+        data = {"has_more": False}
+        assert _filter_data_source_objects(data) == {"has_more": False}
+
+    def test_filter_empty_results(self):
+        from notion_mcp.tools.search import _filter_data_source_objects
+
+        data = {"results": [], "has_more": False}
+        result = _filter_data_source_objects(data)
+        assert result["results"] == []
+
+    def test_filter_removes_fake_databases(self):
+        from notion_mcp.tools.search import _filter_data_source_objects
+
+        data = {
+            "results": [
+                {"object": "database", "id": "db-1", "data_sources": [{"id": "ds-1"}]},
+                {"object": "database", "id": "ds-fake", "properties": {}},
+                {"object": "page", "id": "page-1"},
+            ],
+            "has_more": False,
+        }
+        result = _filter_data_source_objects(data)
+        assert len(result["results"]) == 2
+        assert result["results"][0]["id"] == "db-1"
+        assert result["results"][1]["id"] == "page-1"
+
+    def test_filter_does_not_mutate_original(self):
+        from notion_mcp.tools.search import _filter_data_source_objects
+
+        original_results = [
+            {"object": "database", "id": "ds-fake", "properties": {}},
+            {"object": "page", "id": "page-1"},
+        ]
+        data = {"results": original_results, "has_more": False}
+        result = _filter_data_source_objects(data)
+        # Original data should still have 2 results
+        assert len(data["results"]) == 2
+        # Filtered result should have 1
+        assert len(result["results"]) == 1
+
 
 # ---------------------------------------------------------------------------
 # Error handling

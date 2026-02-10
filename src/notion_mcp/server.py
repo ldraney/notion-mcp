@@ -72,7 +72,7 @@ def _error_response(exc: Exception) -> str:
 # "object" is always inferrable from context (pages have properties, blocks have type-specific content, etc.)
 _ALWAYS_STRIP_KEYS = {"object", "request_id"}
 
-# Keys stripped from page/block objects (dicts that have both "id" and "type")
+# Keys stripped from page/block objects (dicts that have "id" + "type" or "properties")
 _PAGE_BLOCK_STRIP_KEYS = {"parent", "created_by", "last_edited_by", "created_time", "last_edited_time"}
 
 # Default annotations for rich_text items
@@ -148,8 +148,8 @@ def _slim_response(data: Any) -> Any:
 
         result[key] = value
 
-    # --- Strip page/block metadata (dicts with both "id" and "type") ---
-    if "id" in result and "type" in result:
+    # --- Strip page/block metadata (dicts with "id" + "type" or "properties") ---
+    if "id" in result and ("type" in result or "properties" in result):
         type_val = result.get("type")
         for mk in _PAGE_BLOCK_STRIP_KEYS:
             if mk != type_val:

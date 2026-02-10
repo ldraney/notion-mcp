@@ -150,8 +150,10 @@ def _slim_response(data: Any) -> Any:
 
     # --- Strip page/block metadata (dicts with both "id" and "type") ---
     if "id" in result and "type" in result:
+        type_val = result.get("type")
         for mk in _PAGE_BLOCK_STRIP_KEYS:
-            result.pop(mk, None)
+            if mk != type_val:
+                result.pop(mk, None)
         # Strip false-valued flags
         if result.get("archived") is False:
             del result["archived"]

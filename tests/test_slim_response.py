@@ -620,3 +620,69 @@ class TestRealisticRoundTrip:
         assert "plain_text" not in title_rt
         assert "annotations" not in title_rt
         assert title_rt["text"] == {"content": "My Page"}
+
+
+class TestPropertyValueCollision:
+    """Verify that property value dicts whose type collides with _PAGE_BLOCK_STRIP_KEYS
+    do NOT have their data key stripped (the bug fixed in this commit)."""
+
+    def test_created_time_property_preserved(self):
+        prop = {"id": "%3DYVX", "type": "created_time", "created_time": "2024-01-01T00:00:00.000Z"}
+        result = _slim_response(prop)
+        assert result["created_time"] == "2024-01-01T00:00:00.000Z"
+        assert result["type"] == "created_time"
+
+    def test_created_by_property_preserved(self):
+        prop = {"id": "nAI%60", "type": "created_by", "created_by": {"object": "user", "id": "user-1"}}
+        result = _slim_response(prop)
+        assert "created_by" in result
+        assert result["created_by"]["id"] == "user-1"
+
+    def test_last_edited_time_property_preserved(self):
+        prop = {"id": "abc", "type": "last_edited_time", "last_edited_time": "2024-06-15T10:00:00.000Z"}
+        result = _slim_response(prop)
+        assert result["last_edited_time"] == "2024-06-15T10:00:00.000Z"
+
+    def test_last_edited_by_property_preserved(self):
+        prop = {"id": "def", "type": "last_edited_by", "last_edited_by": {"object": "user", "id": "user-2"}}
+        result = _slim_response(prop)
+        assert "last_edited_by" in result
+        assert result["last_edited_by"]["id"] == "user-2"
+
+    def test_page_metadata_still_stripped(self):
+        """Real page objects still get their metadata stripped (regression test)."""
+        page = {
+            "id": "page-1", "type": "page",
+            "parent": {"type": "workspace"},
+            "created_by": {"object": "user", "id": "u1"},
+            "last_edited_by": {"object": "user", "id": "u1"},
+            "created_time": "2024-01-01T00:00:00.000Z",
+            "last_edited_time": "2024-01-02T00:00:00.000Z",
+            "properties": {
+                "Created": {"id": "ct", "type": "created_time", "created_time": "2024-01-01T00:00:00.000Z"}
+            }
+        }
+        result = _slim_response(page)
+        # Page-level metadata stripped
+        assert "parent" not in result
+        assert "created_by" not in result
+        assert "created_time" not in result
+        # But property value preserved
+        assert result["properties"]["Created"]["created_time"] == "2024-01-01T00:00:00.000Z"
+
+    def test_block_metadata_still_stripped(self):
+        """Block objects still get their metadata stripped (regression test)."""
+        block = {
+            "id": "block-1", "type": "paragraph",
+            "parent": {"type": "page_id", "page_id": "page-1"},
+            "created_time": "2024-01-01T00:00:00.000Z",
+            "last_edited_time": "2024-01-01T00:00:00.000Z",
+            "created_by": {"object": "user", "id": "u1"},
+            "last_edited_by": {"object": "user", "id": "u1"},
+            "paragraph": {"rich_text": []}
+        }
+        result = _slim_response(block)
+        assert "parent" not in result
+        assert "created_by" not in result
+        assert "created_time" not in result
+        assert result["type"] == "paragraph"

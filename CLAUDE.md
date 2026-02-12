@@ -53,6 +53,17 @@ Download link (always latest): `https://github.com/ldraney/notion-mcp/releases/l
 
 ## Branch Workflow
 
-- Feature branches + worktrees at `~/.worktrees/`
+- **Never develop directly on `main`** — always use feature branches in worktrees
+- Worktrees live in `.worktrees/` (gitignored) inside the project
+- `.mcp.json` is committed to the repo — it overrides `~/.mcp.json` so agents in worktrees automatically get the correct MCP server config
 - Branch protection on `main` requires PRs (use `--admin` to bypass)
 - Pattern: implement → review agent → fix findings → merge
+
+### Creating a worktree for a feature branch
+
+```bash
+git worktree add .worktrees/<branch-name> -b <branch-name>
+cd .worktrees/<branch-name>
+uv sync
+# .mcp.json is already there from the repo — agents get MCP tools automatically
+```

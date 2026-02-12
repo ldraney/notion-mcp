@@ -5,14 +5,48 @@ from __future__ import annotations
 import json
 from typing import Annotated, Any
 
+import httpx
 from pydantic import Field
 
 from ..server import mcp, get_client, _parse_json, _error_response, _slim_response
 
 
+def _maybe_retry_with_data_source_parent(
+    kwargs: dict[str, Any],
+) -> dict[str, Any] | None:
+    """If the parent uses database_id, retry the create with data_source_id.
+
+    In Notion API v2025-09-03, databases have separate data sources.
+    When a database_id parent returns 404, the ID is often a data_source_id.
+    This helper swaps the parent type and retries.
+
+    Returns the API result on success, or None if not applicable.
+    """
+    parent = kwargs.get("parent")
+    if not isinstance(parent, dict):
+        return None
+    if parent.get("type") != "database_id":
+        return None
+
+    db_id = parent.get("database_id")
+    if not db_id:
+        return None
+
+    retried_kwargs = dict(kwargs)
+    retried_kwargs["parent"] = {"type": "data_source_id", "data_source_id": db_id}
+    return get_client().create_page(**retried_kwargs)
+
+
 @mcp.tool()
 def create_page(
-    parent: Annotated[str | dict, Field(description="JSON string or object for the parent, e.g. {\"type\": \"page_id\", \"page_id\": \"...\"}")],
+    parent: Annotated[str | dict, Field(description=(
+        'JSON string or object for the parent. Valid types: '
+        '{"type": "page_id", "page_id": "..."}, '
+        '{"type": "database_id", "database_id": "..."}, or '
+        '{"type": "data_source_id", "data_source_id": "..."}. '
+        'In v2025-09-03, databases use data sources — if database_id returns 404, '
+        'the ID may be a data_source_id. This tool auto-retries with data_source_id on 404.'
+    ))],
     properties: Annotated[str | dict, Field(description="JSON string or object for the page properties mapping")],
     children: Annotated[str | list | None, Field(description="JSON string or array for a list of block children to append. Cannot be used together with template.")] = None,
     template: Annotated[str | dict | None, Field(description="JSON string or object for a data-source template, e.g. {\"type\": \"none\"}, {\"type\": \"default\"}, or {\"type\": \"template_id\", \"template_id\": \"<uuid>\"}")] = None,
@@ -24,6 +58,8 @@ def create_page(
 
     Args:
         parent: JSON string or object for the parent object, e.g. {"type": "page_id", "page_id": "..."}.
+            Also accepts {"type": "data_source_id", "data_source_id": "..."} for v2025-09-03 databases.
+            If database_id returns 404, automatically retries with data_source_id.
         properties: JSON string or object for the page properties mapping.
         children: Optional JSON string or array for a list of block children to append.
             Cannot be used together with template.
@@ -47,7 +83,14 @@ def create_page(
             kwargs["icon"] = _parse_json(icon, "icon")
         if cover is not None:
             kwargs["cover"] = _parse_json(cover, "cover")
-        result = get_client().create_page(**kwargs)
+        try:
+            result = get_client().create_page(**kwargs)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                retried = _maybe_retry_with_data_source_parent(kwargs)
+                if retried is not None:
+                    return json.dumps(_slim_response(retried), indent=2)
+            raise
         return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)

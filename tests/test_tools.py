@@ -93,6 +93,83 @@ class TestPageTools:
         assert call_kwargs["children"] is None
         assert call_kwargs["template"] == {"type": "template_id", "template_id": "tmpl-abc"}
 
+    def test_create_page_with_data_source_parent(self, mock_client):
+        """data_source_id parent type should be passed through directly."""
+        from notion_mcp.tools.pages import create_page
+
+        mock_client.create_page.return_value = {"id": "page-ds", "object": "page"}
+        parent = json.dumps({"type": "data_source_id", "data_source_id": "ds-abc"})
+        props = json.dumps({"title": [{"text": {"content": "Test"}}]})
+        result = create_page(parent=parent, properties=props)
+        parsed = json.loads(result)
+        assert parsed["id"] == "page-ds"
+        call_kwargs = mock_client.create_page.call_args.kwargs
+        assert call_kwargs["parent"] == {"type": "data_source_id", "data_source_id": "ds-abc"}
+
+    def test_create_page_database_id_404_retries_with_data_source_id(self, mock_client):
+        """When database_id parent returns 404, auto-retry with data_source_id."""
+        from notion_mcp.tools.pages import create_page
+
+        # First call (database_id) raises 404, second call (data_source_id) succeeds
+        response_404 = httpx.Response(
+            status_code=404,
+            json={"object": "error", "code": "object_not_found", "message": "Not found"},
+            request=httpx.Request("POST", "https://api.notion.com/v1/pages"),
+        )
+        mock_client.create_page.side_effect = [
+            httpx.HTTPStatusError("Not Found", request=response_404.request, response=response_404),
+            {"id": "page-retried", "object": "page"},
+        ]
+        parent = json.dumps({"type": "database_id", "database_id": "some-id"})
+        props = json.dumps({"title": [{"text": {"content": "Test"}}]})
+        result = create_page(parent=parent, properties=props)
+        parsed = json.loads(result)
+        assert parsed["id"] == "page-retried"
+        # Verify the retry used data_source_id
+        retry_kwargs = mock_client.create_page.call_args_list[1].kwargs
+        assert retry_kwargs["parent"] == {"type": "data_source_id", "data_source_id": "some-id"}
+
+    def test_create_page_database_id_404_no_retry_for_page_parent(self, mock_client):
+        """When page_id parent returns 404, should NOT retry — just return error."""
+        from notion_mcp.tools.pages import create_page
+
+        response_404 = httpx.Response(
+            status_code=404,
+            json={"object": "error", "code": "object_not_found", "message": "Not found"},
+            request=httpx.Request("POST", "https://api.notion.com/v1/pages"),
+        )
+        mock_client.create_page.side_effect = httpx.HTTPStatusError(
+            "Not Found", request=response_404.request, response=response_404,
+        )
+        parent = json.dumps({"type": "page_id", "page_id": "some-page"})
+        props = json.dumps({"title": [{"text": {"content": "Test"}}]})
+        result = create_page(parent=parent, properties=props)
+        parsed = json.loads(result)
+        assert parsed["error"] is True
+        assert parsed["status_code"] == 404
+        # Should only have been called once (no retry)
+        assert mock_client.create_page.call_count == 1
+
+    def test_create_page_database_id_non_404_no_retry(self, mock_client):
+        """Non-404 errors with database_id parent should NOT retry."""
+        from notion_mcp.tools.pages import create_page
+
+        response_403 = httpx.Response(
+            status_code=403,
+            json={"object": "error", "code": "restricted_resource", "message": "Forbidden"},
+            request=httpx.Request("POST", "https://api.notion.com/v1/pages"),
+        )
+        mock_client.create_page.side_effect = httpx.HTTPStatusError(
+            "Forbidden", request=response_403.request, response=response_403,
+        )
+        parent = json.dumps({"type": "database_id", "database_id": "some-id"})
+        props = json.dumps({"title": [{"text": {"content": "Test"}}]})
+        result = create_page(parent=parent, properties=props)
+        parsed = json.loads(result)
+        assert parsed["error"] is True
+        assert parsed["status_code"] == 403
+        assert mock_client.create_page.call_count == 1
+
     def test_create_page_with_position_icon_cover(self, mock_client):
         from notion_mcp.tools.pages import create_page
 

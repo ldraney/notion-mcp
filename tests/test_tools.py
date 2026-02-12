@@ -150,6 +150,25 @@ class TestPageTools:
         # Should only have been called once (no retry)
         assert mock_client.create_page.call_count == 1
 
+    def test_create_page_database_id_both_calls_404(self, mock_client):
+        """When both database_id and data_source_id return 404, error should surface."""
+        from notion_mcp.tools.pages import create_page
+
+        response_404 = httpx.Response(
+            status_code=404,
+            json={"object": "error", "code": "object_not_found", "message": "Not found"},
+            request=httpx.Request("POST", "https://api.notion.com/v1/pages"),
+        )
+        err = httpx.HTTPStatusError("Not Found", request=response_404.request, response=response_404)
+        mock_client.create_page.side_effect = [err, err]
+        parent = json.dumps({"type": "database_id", "database_id": "bogus-id"})
+        props = json.dumps({"title": [{"text": {"content": "Test"}}]})
+        result = create_page(parent=parent, properties=props)
+        parsed = json.loads(result)
+        assert parsed["error"] is True
+        assert parsed["status_code"] == 404
+        assert mock_client.create_page.call_count == 2
+
     def test_create_page_database_id_non_404_no_retry(self, mock_client):
         """Non-404 errors with database_id parent should NOT retry."""
         from notion_mcp.tools.pages import create_page

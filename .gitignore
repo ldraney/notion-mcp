@@ -27,6 +27,9 @@ env/
 .coverage
 htmlcov/
 
+# Worktrees
+.worktrees/
+
 # OS
 .DS_Store
 Thumbs.db

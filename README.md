@@ -130,14 +130,12 @@ Each tool module mirrors the SDK's mixin structure, keeping a clean 1:1 mapping.
 ## Setup
 
 ```bash
-# Clone
+# Clone and install
 git clone https://github.com/ldraney/notion-mcp.git
 cd notion-mcp
+uv sync
 
-# Install
-pip install -e .
-
-# Configure
+# Set your API key
 export NOTION_API_KEY="ntn_..."
 ```
 
@@ -145,21 +143,27 @@ export NOTION_API_KEY="ntn_..."
 
 ### With Claude Code
 
-Add to your Claude Code MCP config (`~/.claude/settings.json` or project settings):
+The repo ships with a `.mcp.json` that configures everything automatically. Just `cd` into the project and start Claude Code — it picks up the config and reads `NOTION_API_KEY` from your environment via `${NOTION_API_KEY}` interpolation.
+
+To use notion-mcp from **other projects**, add this to that project's `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "notion": {
-      "command": "python",
-      "args": ["-m", "notion_mcp"],
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/notion-mcp", "python", "-m", "notion_mcp"],
       "env": {
-        "NOTION_API_KEY": "ntn_..."
+        "NOTION_API_KEY": "${NOTION_API_KEY}"
       }
     }
   }
 }
 ```
+
+Or add it to `~/.mcp.json` to make it available globally across all projects.
+
+See [hello-mcp](https://github.com/ldraney/hello-mcp) for more on the `${VAR}` env secret pattern.
 
 ### Standalone
 

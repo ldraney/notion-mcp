@@ -29,11 +29,13 @@ Neither works reliably. This is well-documented in issues like [#142](https://gi
 | Property updates | Blocked by `additionalProperties: false` ([#184](https://github.com/makenotion/notion-mcp-server/issues/184)) | Unknown | Works correctly |
 | Database queries | `retrieve-a-database` was missing for 5 weeks | Some tools gated to Enterprise | `query_database` auto-resolves data sources |
 | Tool count | 22 | ~10 | 26 |
+| Context cost | ~8k+ tokens (est.) | ~21k tokens (measured) | ~8.6k tokens (measured) |
 | Convenience tools | None | Limited | `archive_page`, `archive_database`, `query_database` |
 | Install | npm | Claude Desktop only | PyPI (`uvx`), `.mcpb` (planned) |
 
 ### Key advantages
 
+- **2.5x more token-efficient** — 26 tools in ~8.6k tokens vs the official Claude-managed Notion integration's 12 tools in ~21.4k tokens. Less context overhead means more room for actual conversation
 - **Correct API headers always** — Built on [`ldraney-notion-sdk`](https://github.com/ldraney/notion-sdk), which always sends the `Notion-Version: 2025-09-03` header correctly
 - **LLM-friendly parameter handling** — `str | dict` union types so tools don't break when LLMs pass raw objects instead of JSON strings
 - **Convenience tools** — Operations like `archive_page`, `archive_database`, and `query_database` (with auto data-source resolution) reduce multi-step workflows to single calls

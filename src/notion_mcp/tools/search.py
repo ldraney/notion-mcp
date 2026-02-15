@@ -3,47 +3,11 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Annotated
+from typing import Annotated
 
 from pydantic import Field
 
 from ..server import mcp, get_client, _parse_json, _error_response, _slim_response
-
-
-def _filter_data_source_objects(result: dict[str, Any]) -> dict[str, Any]:
-    """Filter out data source objects that the v2025-09-03 API returns as databases.
-
-    The Notion v2025-09-03 search endpoint returns data sources as separate
-    objects in search results. These look like database objects (object="database")
-    but their IDs are data_source_ids, not database_ids. Using these IDs with
-    query_database or get_database causes 404 errors.
-
-    Real database objects always have a ``data_sources`` key in v2025-09-03.
-    Data source objects surfaced by search do NOT. This function filters them out.
-    """
-    if "results" not in result or not isinstance(result["results"], list):
-        return result
-
-    filtered = [
-        item for item in result["results"]
-        if not _is_data_source_masquerading_as_database(item)
-    ]
-
-    result = dict(result)
-    result["results"] = filtered
-    return result
-
-
-def _is_data_source_masquerading_as_database(item: Any) -> bool:
-    """Return True if a search result is a data source pretending to be a database.
-
-    In v2025-09-03, real databases have ``object: "database"`` AND a
-    ``data_sources`` key.  Data source objects surfaced by search have
-    ``object: "database"`` but lack ``data_sources``.
-    """
-    if not isinstance(item, dict):
-        return False
-    return item.get("object") == "database" and "data_sources" not in item
 
 
 @mcp.tool()
@@ -55,6 +19,10 @@ def search(
     page_size: Annotated[int | None, Field(description="Number of results per page")] = None,
 ) -> str:
     """Search Notion pages and databases.
+
+    In Notion API v2025-09-03, databases are returned as data source objects.
+    The IDs returned are data_source_ids, which work with query_database,
+    get_database, query_data_source, and get_data_source.
 
     Args:
         query: Optional text query to search for.
@@ -73,7 +41,6 @@ def search(
             start_cursor=start_cursor,
             page_size=page_size,
         )
-        result = _filter_data_source_objects(result)
         return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)

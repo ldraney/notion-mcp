@@ -7,6 +7,8 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
+import httpx
+
 from ..server import mcp, get_client, _parse_json, _error_response, _slim_response
 
 
@@ -67,14 +69,26 @@ def get_database(
 ) -> str:
     """Retrieve a Notion database by its ID.
 
-    Note: In v2025-09-03 the response contains data_sources but NOT
-    properties. Use get_data_source to inspect properties.
+    Accepts either a database_id or a data_source_id. In Notion API v2025-09-03,
+    search returns data_source_ids, so this tool tries the data_source endpoint
+    first, then falls back to the database endpoint.
 
     Args:
         database_id: The UUID of the database to retrieve.
     """
+    client = get_client()
+    # Try as data_source_id first — this is what search returns in v2025-09-03
     try:
-        result = get_client().get_database(database_id)
+        result = client.get_data_source(database_id)
+        return json.dumps(_slim_response(result), indent=2)
+    except httpx.HTTPStatusError as ds_exc:
+        if ds_exc.response.status_code != 404:
+            return _error_response(ds_exc)
+    except Exception as ds_exc:
+        return _error_response(ds_exc)
+    # Fall back to database endpoint — works with actual database_ids
+    try:
+        result = client.get_database(database_id)
         return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)
@@ -142,8 +156,9 @@ def query_database(
 ) -> str:
     """Query a Notion database for pages/rows.
 
-    Automatically resolves the first data source and queries it.
-    If you already know the data source ID, use query_data_source instead.
+    Accepts either a database_id or a data_source_id. In Notion API v2025-09-03,
+    search returns data_source_ids, so this tool tries querying as a data source
+    first, then falls back to resolving via the database endpoint.
 
     Args:
         database_id: The UUID of the database to query.
@@ -155,20 +170,31 @@ def query_database(
         archived: If true, only return archived pages.
         in_trash: If true, only return trashed pages.
     """
+    client = get_client()
+    kwargs: dict[str, Any] = dict(
+        filter=_parse_json(filter, "filter"),
+        sorts=_parse_json(sorts, "sorts"),
+        start_cursor=start_cursor,
+        page_size=page_size,
+    )
+    if filter_properties is not None:
+        kwargs["filter_properties"] = _parse_json(filter_properties, "filter_properties")
+    if archived is not None:
+        kwargs["archived"] = archived
+    if in_trash is not None:
+        kwargs["in_trash"] = in_trash
+    # Try as data_source_id first — this is what search returns in v2025-09-03
     try:
-        kwargs: dict[str, Any] = dict(
-            filter=_parse_json(filter, "filter"),
-            sorts=_parse_json(sorts, "sorts"),
-            start_cursor=start_cursor,
-            page_size=page_size,
-        )
-        if filter_properties is not None:
-            kwargs["filter_properties"] = _parse_json(filter_properties, "filter_properties")
-        if archived is not None:
-            kwargs["archived"] = archived
-        if in_trash is not None:
-            kwargs["in_trash"] = in_trash
-        result = get_client().query_database(database_id, **kwargs)
+        result = client.query_data_source(database_id, **kwargs)
+        return json.dumps(_slim_response(result), indent=2)
+    except httpx.HTTPStatusError as ds_exc:
+        if ds_exc.response.status_code != 404:
+            return _error_response(ds_exc)
+    except Exception as ds_exc:
+        return _error_response(ds_exc)
+    # Fall back to database endpoint — resolves data_source from database_id
+    try:
+        result = client.query_database(database_id, **kwargs)
         return json.dumps(_slim_response(result), indent=2)
     except Exception as exc:
         return _error_response(exc)

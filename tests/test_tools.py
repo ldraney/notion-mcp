@@ -245,12 +245,33 @@ class TestDatabaseTools:
         assert parsed["id"] == "db-1"
 
     def test_get_database(self, mock_client):
+        """get_database tries data_source endpoint first."""
         from notion_mcp.tools.databases import get_database
 
+        mock_client.get_data_source.return_value = {"id": "db-1"}
+        result = get_database("db-1")
+        parsed = json.loads(result)
+        assert parsed["id"] == "db-1"
+        mock_client.get_data_source.assert_called_once_with("db-1")
+
+    def test_get_database_falls_back_to_database_endpoint(self, mock_client):
+        """get_database falls back to database endpoint on 404."""
+        from notion_mcp.tools.databases import get_database
+
+        # data_source endpoint returns 404
+        response_404 = httpx.Response(
+            status_code=404,
+            json={"object": "error", "code": "object_not_found", "message": "Not found"},
+            request=httpx.Request("GET", "https://api.notion.com/v1/data_sources/db-1"),
+        )
+        mock_client.get_data_source.side_effect = httpx.HTTPStatusError(
+            "Not Found", request=response_404.request, response=response_404,
+        )
         mock_client.get_database.return_value = {"id": "db-1"}
         result = get_database("db-1")
         parsed = json.loads(result)
         assert parsed["id"] == "db-1"
+        mock_client.get_database.assert_called_once_with("db-1")
 
     def test_update_database(self, mock_client):
         from notion_mcp.tools.databases import update_database
@@ -292,20 +313,22 @@ class TestDatabaseTools:
         assert call_kwargs["cover"] == {"type": "external", "external": {"url": "https://example.com"}}
 
     def test_query_database(self, mock_client):
+        """query_database tries data_source endpoint first."""
         from notion_mcp.tools.databases import query_database
 
-        mock_client.query_database.return_value = {"results": [], "has_more": False}
+        mock_client.query_data_source.return_value = {"results": [], "has_more": False}
         result = query_database("db-1", page_size=10)
         parsed = json.loads(result)
         assert parsed["has_more"] is False
-        mock_client.query_database.assert_called_once_with(
+        mock_client.query_data_source.assert_called_once_with(
             "db-1", filter=None, sorts=None, start_cursor=None, page_size=10,
         )
 
     def test_query_database_with_new_params(self, mock_client):
+        """query_database with extra params tries data_source endpoint first."""
         from notion_mcp.tools.databases import query_database
 
-        mock_client.query_database.return_value = {"results": [], "has_more": False}
+        mock_client.query_data_source.return_value = {"results": [], "has_more": False}
         result = query_database(
             "db-1",
             filter_properties='["title", "status"]',
@@ -314,7 +337,7 @@ class TestDatabaseTools:
         )
         parsed = json.loads(result)
         assert parsed["has_more"] is False
-        mock_client.query_database.assert_called_once_with(
+        mock_client.query_data_source.assert_called_once_with(
             "db-1",
             filter=None,
             sorts=None,
@@ -595,39 +618,26 @@ class TestSearchTool:
             page_size=5,
         )
 
-    def test_search_filters_out_data_source_objects(self, mock_client):
-        """Data source objects masquerading as databases should be filtered out.
+    def test_search_returns_data_source_objects(self, mock_client):
+        """Data source objects should NOT be filtered out.
 
-        The Notion v2025-09-03 search endpoint returns data sources as separate
-        objects with object="database" but without a "data_sources" key.
-        These cause 404 errors when used with query_database/get_database.
+        In v2025-09-03, databases ARE data sources. The database tools now
+        try the data_source endpoint first, so data_source_ids from search
+        results work directly with get_database/query_database.
         """
         from notion_mcp.tools.search import search
 
-        # A real database has object="database" AND data_sources
-        real_database = {
+        data_source = {
             "object": "database",
-            "id": "db-real-123",
-            "title": [{"type": "text", "text": {"content": "Real DB"}}],
-            "data_sources": [{"id": "ds-abc", "type": "default"}],
-            "parent": {"type": "workspace", "workspace": True},
-            "created_time": "2024-01-01T00:00:00.000Z",
-            "last_edited_time": "2024-01-02T00:00:00.000Z",
-        }
-        # A data source masquerading as a database has object="database" but NO data_sources
-        fake_database = {
-            "object": "database",
-            "id": "ds-fake-456",
-            "title": [{"type": "text", "text": {"content": "Fake DB (data source)"}}],
+            "id": "ds-456",
+            "title": [{"type": "text", "text": {"content": "Data Source DB"}}],
             "properties": {
                 "Name": {"id": "title", "type": "title", "title": {}},
-                "Status": {"id": "s1", "type": "select", "select": {"options": []}},
             },
             "parent": {"type": "page_id", "page_id": "page-parent"},
             "created_time": "2024-01-01T00:00:00.000Z",
             "last_edited_time": "2024-01-02T00:00:00.000Z",
         }
-        # A page should never be filtered
         page = {
             "object": "page",
             "id": "page-789",
@@ -639,7 +649,7 @@ class TestSearchTool:
 
         mock_client.search.return_value = {
             "object": "list",
-            "results": [real_database, fake_database, page],
+            "results": [data_source, page],
             "has_more": False,
             "next_cursor": None,
         }
@@ -647,12 +657,11 @@ class TestSearchTool:
         result = search(query="test")
         parsed = json.loads(result)
 
-        # Should have 2 results: the real database and the page (fake filtered out)
+        # Both results should be present — no filtering
         assert len(parsed["results"]) == 2
         result_ids = [r["id"] for r in parsed["results"]]
-        assert "db-real-123" in result_ids
+        assert "ds-456" in result_ids
         assert "page-789" in result_ids
-        assert "ds-fake-456" not in result_ids
 
     def test_search_keeps_all_pages(self, mock_client):
         """Pages should never be filtered, even if they lack data_sources."""
@@ -703,87 +712,86 @@ class TestSearchTool:
 
 
 # ---------------------------------------------------------------------------
-# Data source filtering helpers (unit tests)
+# Data source endpoint as primary path (integration-level tests)
 # ---------------------------------------------------------------------------
 
 
-class TestDataSourceFiltering:
-    """Unit tests for _filter_data_source_objects and _is_data_source_masquerading_as_database."""
+class TestDataSourcePrimaryPath:
+    """Tests verifying that database tools try data_source endpoint first."""
 
-    def test_is_data_source_masquerading_true(self):
-        from notion_mcp.tools.search import _is_data_source_masquerading_as_database
+    def test_get_database_prefers_data_source_endpoint(self, mock_client):
+        """get_database should call get_data_source before get_database."""
+        from notion_mcp.tools.databases import get_database
 
-        item = {"object": "database", "id": "ds-1", "properties": {}}
-        assert _is_data_source_masquerading_as_database(item) is True
+        mock_client.get_data_source.return_value = {"id": "ds-1", "object": "database"}
+        result = get_database("ds-1")
+        parsed = json.loads(result)
+        assert parsed["id"] == "ds-1"
+        mock_client.get_data_source.assert_called_once_with("ds-1")
+        mock_client.get_database.assert_not_called()
 
-    def test_is_data_source_masquerading_false_for_real_db(self):
-        from notion_mcp.tools.search import _is_data_source_masquerading_as_database
+    def test_query_database_prefers_data_source_endpoint(self, mock_client):
+        """query_database should call query_data_source before query_database."""
+        from notion_mcp.tools.databases import query_database
 
-        item = {"object": "database", "id": "db-1", "data_sources": [{"id": "ds-1"}]}
-        assert _is_data_source_masquerading_as_database(item) is False
+        mock_client.query_data_source.return_value = {"results": [{"id": "p1"}], "has_more": False}
+        result = query_database("ds-1")
+        parsed = json.loads(result)
+        assert len(parsed["results"]) == 1
+        mock_client.query_data_source.assert_called_once()
+        mock_client.query_database.assert_not_called()
 
-    def test_is_data_source_masquerading_false_for_page(self):
-        from notion_mcp.tools.search import _is_data_source_masquerading_as_database
+    def test_get_database_fallback_on_404(self, mock_client):
+        """get_database falls back to database endpoint when data_source returns 404."""
+        from notion_mcp.tools.databases import get_database
 
-        item = {"object": "page", "id": "page-1", "properties": {}}
-        assert _is_data_source_masquerading_as_database(item) is False
+        response_404 = httpx.Response(
+            status_code=404,
+            json={"object": "error", "code": "object_not_found", "message": "Not found"},
+            request=httpx.Request("GET", "https://api.notion.com/v1/data_sources/db-1"),
+        )
+        mock_client.get_data_source.side_effect = httpx.HTTPStatusError(
+            "Not Found", request=response_404.request, response=response_404,
+        )
+        mock_client.get_database.return_value = {"id": "db-1", "object": "database"}
+        result = get_database("db-1")
+        parsed = json.loads(result)
+        assert parsed["id"] == "db-1"
 
-    def test_is_data_source_masquerading_false_for_non_dict(self):
-        from notion_mcp.tools.search import _is_data_source_masquerading_as_database
+    def test_query_database_fallback_on_404(self, mock_client):
+        """query_database falls back to database endpoint when data_source returns 404."""
+        from notion_mcp.tools.databases import query_database
 
-        assert _is_data_source_masquerading_as_database("not a dict") is False
-        assert _is_data_source_masquerading_as_database(42) is False
-        assert _is_data_source_masquerading_as_database(None) is False
+        response_404 = httpx.Response(
+            status_code=404,
+            json={"object": "error", "code": "object_not_found", "message": "Not found"},
+            request=httpx.Request("POST", "https://api.notion.com/v1/data_sources/db-1/query"),
+        )
+        mock_client.query_data_source.side_effect = httpx.HTTPStatusError(
+            "Not Found", request=response_404.request, response=response_404,
+        )
+        mock_client.query_database.return_value = {"results": [], "has_more": False}
+        result = query_database("db-1")
+        parsed = json.loads(result)
+        assert parsed["has_more"] is False
 
-    def test_is_data_source_false_for_empty_data_sources(self):
-        """A database with data_sources: [] is a real database, not a data source."""
-        from notion_mcp.tools.search import _is_data_source_masquerading_as_database
+    def test_get_database_non_404_error_returns_immediately(self, mock_client):
+        """get_database returns error immediately for non-404 HTTPStatusError."""
+        from notion_mcp.tools.databases import get_database
 
-        item = {"object": "database", "id": "db-1", "data_sources": []}
-        assert _is_data_source_masquerading_as_database(item) is False
-
-    def test_filter_no_results_key(self):
-        from notion_mcp.tools.search import _filter_data_source_objects
-
-        data = {"has_more": False}
-        assert _filter_data_source_objects(data) == {"has_more": False}
-
-    def test_filter_empty_results(self):
-        from notion_mcp.tools.search import _filter_data_source_objects
-
-        data = {"results": [], "has_more": False}
-        result = _filter_data_source_objects(data)
-        assert result["results"] == []
-
-    def test_filter_removes_fake_databases(self):
-        from notion_mcp.tools.search import _filter_data_source_objects
-
-        data = {
-            "results": [
-                {"object": "database", "id": "db-1", "data_sources": [{"id": "ds-1"}]},
-                {"object": "database", "id": "ds-fake", "properties": {}},
-                {"object": "page", "id": "page-1"},
-            ],
-            "has_more": False,
-        }
-        result = _filter_data_source_objects(data)
-        assert len(result["results"]) == 2
-        assert result["results"][0]["id"] == "db-1"
-        assert result["results"][1]["id"] == "page-1"
-
-    def test_filter_does_not_mutate_original(self):
-        from notion_mcp.tools.search import _filter_data_source_objects
-
-        original_results = [
-            {"object": "database", "id": "ds-fake", "properties": {}},
-            {"object": "page", "id": "page-1"},
-        ]
-        data = {"results": original_results, "has_more": False}
-        result = _filter_data_source_objects(data)
-        # Original data should still have 2 results
-        assert len(data["results"]) == 2
-        # Filtered result should have 1
-        assert len(result["results"]) == 1
+        response_403 = httpx.Response(
+            status_code=403,
+            json={"object": "error", "code": "restricted_resource", "message": "Forbidden"},
+            request=httpx.Request("GET", "https://api.notion.com/v1/data_sources/ds-1"),
+        )
+        mock_client.get_data_source.side_effect = httpx.HTTPStatusError(
+            "Forbidden", request=response_403.request, response=response_403,
+        )
+        result = get_database("ds-1")
+        parsed = json.loads(result)
+        assert parsed["error"] is True
+        assert parsed["status_code"] == 403
+        mock_client.get_database.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -848,15 +856,15 @@ class TestErrorHandling:
         assert parsed["details"] == "Bad Gateway"
 
     def test_http_status_error_rate_limit(self, mock_client):
-        """HTTPStatusError for 429 rate-limit responses."""
+        """HTTPStatusError for 429 rate-limit responses (via data_source endpoint)."""
         from notion_mcp.tools.databases import query_database
 
         response = httpx.Response(
             status_code=429,
             json={"object": "error", "code": "rate_limited", "message": "Rate limited"},
-            request=httpx.Request("POST", "https://api.notion.com/v1/databases/db-1/query"),
+            request=httpx.Request("POST", "https://api.notion.com/v1/data_sources/db-1/query"),
         )
-        mock_client.query_database.side_effect = httpx.HTTPStatusError(
+        mock_client.query_data_source.side_effect = httpx.HTTPStatusError(
             "Rate Limited", request=response.request, response=response,
         )
         result = query_database("db-1")
@@ -996,13 +1004,13 @@ class TestRawDictParams:
     def test_query_database_raw(self, mock_client):
         from notion_mcp.tools.databases import query_database
 
-        mock_client.query_database.return_value = {"results": [], "has_more": False}
+        mock_client.query_data_source.return_value = {"results": [], "has_more": False}
         filter_obj = {"property": "Status", "select": {"equals": "Done"}}
         sorts_obj = [{"property": "Created", "direction": "descending"}]
         result = query_database("db-1", filter=filter_obj, sorts=sorts_obj)
         parsed = json.loads(result)
         assert parsed["has_more"] is False
-        call_kwargs = mock_client.query_database.call_args.kwargs
+        call_kwargs = mock_client.query_data_source.call_args.kwargs
         assert call_kwargs["filter"] == filter_obj
         assert call_kwargs["sorts"] == sorts_obj
 

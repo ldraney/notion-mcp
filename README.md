@@ -19,7 +19,7 @@ Neither works reliably. This is well-documented in issues like [#142](https://gi
 
 ### Comparison
 
-| | Official open-source | Official hosted | `ldraney-notion-mcp` |
+| | Official open-source | Official hosted | `notion-mcp-ldraney` |
 |---|---|---|---|
 | Status | "Not actively monitored" | Closed-source | Actively maintained |
 | Language | TypeScript | N/A | Python |
@@ -36,7 +36,7 @@ Neither works reliably. This is well-documented in issues like [#142](https://gi
 ### Key advantages
 
 - **2.5x more token-efficient** — 26 tools in ~8.6k tokens vs the official Claude-managed Notion integration's 12 tools in ~21.4k tokens. Less context overhead means more room for actual conversation
-- **Correct API headers always** — Built on [`ldraney-notion-sdk`](https://github.com/ldraney/notion-sdk), which always sends the `Notion-Version: 2025-09-03` header correctly
+- **Correct API headers always** — Built on [`notion-sdk-ldraney`](https://github.com/ldraney/notion-sdk), which always sends the `Notion-Version: 2025-09-03` header correctly
 - **LLM-friendly parameter handling** — `str | dict` union types so tools don't break when LLMs pass raw objects instead of JSON strings
 - **Convenience tools** — Operations like `archive_page`, `archive_database`, and `query_database` (with auto data-source resolution) reduce multi-step workflows to single calls
 - **Works everywhere** — `uvx`, `pip`, Claude Code, any MCP-compatible client
@@ -168,7 +168,7 @@ See [hello-mcp](https://github.com/ldraney/hello-mcp) for more on the `${VAR}` e
 ### With uvx
 
 ```bash
-uvx ldraney-notion-mcp
+uvx notion-mcp-ldraney
 ```
 
 ### Standalone

@@ -55,7 +55,7 @@ jobs:
         id: pypi_check
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            "https://pypi.org/pypi/ldraney-notion-mcp/${{ steps.version.outputs.version }}/json")
+            "https://pypi.org/pypi/notion-mcp-ldraney/${{ steps.version.outputs.version }}/json")
           if [ "$STATUS" = "200" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "Version ${{ steps.version.outputs.version }} already on PyPI — skipping publish."
@@ -92,10 +92,10 @@ jobs:
             echo "Error: no .mcpb file found after packing"
             exit 1
           fi
-          if [ "$MCPB_FILE" != "ldraney-notion-mcp.mcpb" ]; then
-            mv "$MCPB_FILE" ldraney-notion-mcp.mcpb
+          if [ "$MCPB_FILE" != "notion-mcp-ldraney.mcpb" ]; then
+            mv "$MCPB_FILE" notion-mcp-ldraney.mcpb
           fi
-          echo "Bundle ready: ldraney-notion-mcp.mcpb"
+          echo "Bundle ready: notion-mcp-ldraney.mcpb"
 
       - name: Create GitHub Release
         if: steps.pypi_check.outputs.exists == 'false'
@@ -103,7 +103,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          gh release create "v${VERSION}" ldraney-notion-mcp.mcpb \
+          gh release create "v${VERSION}" notion-mcp-ldraney.mcpb \
             --title "v${VERSION}" \
             --generate-notes
 

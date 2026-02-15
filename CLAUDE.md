@@ -49,7 +49,7 @@ CI auto-publishes on push to `main` when the version is bumped.
 
 If the version is unchanged, CI skips everything (~10s no-op).
 
-Download link (always latest): `https://github.com/ldraney/notion-mcp/releases/latest/download/ldraney-notion-mcp.mcpb`
+Download link (always latest): `https://github.com/ldraney/notion-mcp/releases/latest/download/notion-mcp-ldraney.mcpb`
 
 ## Branch Workflow
 

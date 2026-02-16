@@ -1,3 +1,7 @@
+[![PyPI](https://img.shields.io/pypi/v/notion-mcp-ldraney)](https://pypi.org/project/notion-mcp-ldraney/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+
 # notion-mcp
 
 MCP (Model Context Protocol) server that wraps [`ldraney/notion-sdk`](https://github.com/ldraney/notion-sdk) — a Python SDK for the Notion API v2025-09-03.
